@@ -4,7 +4,8 @@
   "package": "com.taylorgoolsby.fpvdrone.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "CameraMixin"
+    "CameraMixin",
+    "PlayerDimensionsMixin"
   ],
   "injectors": {
     "defaultRequire": 1
