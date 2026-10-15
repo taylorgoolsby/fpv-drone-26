@@ -1,46 +1,62 @@
 package com.taylorgoolsby.fpvdrone;
 
-/**
- * Holds all of the drone's state in one place.
- *
- * Everything is static because there is only ever one local player on the
- * client, so there is only ever one drone. This is a simple approach that
- * works fine for a client-side-only feature. If you later want multiple
- * drones or server awareness, this would become a normal instance object.
- *
- * IMPORTANT: this class is only for the client. Never touch it from
- * server-side code, because the logical server has no concept of it.
- */
+import net.minecraft.client.player.LocalPlayer;
+import org.joml.Quaternionf;
+
 public class DroneState {
 
-    /** True while the player is "flying the drone." Everything else checks this flag. */
     public static boolean active = false;
 
     /**
-     * The camera's orientation in degrees.
-     *   yaw   = rotation left/right (around the vertical axis)
-     *   pitch = rotation up/down (positive looks DOWN in Minecraft)
-     *   roll  = tilt of the camera around its forward axis (like banking a plane)
-     *
-     * A real FPV drone uses all three, and roll is what makes FPV feel
-     * different from normal Minecraft, where roll is always 0.
+     * The camera's full 3D orientation. Rotating with rotateX/Y/Z on a
+     * quaternion applies the rotation in the drone's OWN (local) axes,
+     * which is what makes FPV flight feel right: pitch is always "nose
+     * up/down" relative to the drone, even when it's rolled sideways.
      */
-    public static float yaw, pitch, roll;
+    public static final Quaternionf orientation = new Quaternionf();
 
-    /**
-     * Turns drone mode on. We start the drone's camera at whatever angle
-     * the player was already looking, so entering drone mode doesn't cause
-     * a sudden visual jump.
-     */
-    public static void enter(float startYaw, float startPitch) {
+    // The player's head rotation is pinned to these while in drone mode.
+    // Any deviation from them is that frame's mouse movement.
+    public static final float LOCKED_PITCH = 0f;
+    public static float lockedYaw;
+
+    // Saved so we can restore the player's view when leaving drone mode.
+    private static float origYaw, origPitch;
+
+    // For frame-time-based (rate) input.
+    public static long lastNanos;
+
+    public static void enter(LocalPlayer player) {
         active = true;
-        yaw = startYaw;
-        pitch = startPitch;
-        roll = 0f; // Always start level.
+
+        origYaw = player.getYRot();
+        origPitch = player.getXRot();
+        lockedYaw = origYaw;
+
+        // Start the drone looking exactly where the player was looking.
+        // Matches the camera's yaw/pitch/roll convention (YXZ order).
+        orientation.identity().rotationYXZ(
+                (float) Math.PI - (float) Math.toRadians(origYaw),
+                -(float) Math.toRadians(origPitch),
+                0f);
+
+        pinPlayerHead(player);
+        lastNanos = System.nanoTime();
     }
 
-    /** Turns drone mode off. The camera goes back to normal behavior automatically. */
-    public static void exit() {
+    public static void exit(LocalPlayer player) {
         active = false;
+        player.setYRot(origYaw);
+        player.setXRot(origPitch);
+        player.yRotO = origYaw;
+        player.xRotO = origPitch;
+    }
+
+    /** Snap the player's head back to the locked angles. */
+    public static void pinPlayerHead(LocalPlayer player) {
+        player.setYRot(lockedYaw);
+        player.setXRot(LOCKED_PITCH);
+        player.yRotO = lockedYaw;
+        player.xRotO = LOCKED_PITCH;
     }
 }

@@ -34,3 +34,6 @@ description='''Fly as an FPV drone in Minecraft.'''
     versionRange="[26.3,26.4,)"
     ordering="NONE"
     side="BOTH"
+
+[[mixins]]
+config = "fpvdrone.mixins.json"

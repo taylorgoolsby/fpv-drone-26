@@ -30,6 +30,7 @@ minecraft {
 
         register('client') {
             jvmArgs '-XstartOnFirstThread'
+            args '-mixin.config=fpvdrone.mixins.json'
         }
 
         register('server') {

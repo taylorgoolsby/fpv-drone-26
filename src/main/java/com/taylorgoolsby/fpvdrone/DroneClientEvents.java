@@ -3,71 +3,89 @@ package com.taylorgoolsby.fpvdrone;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 
-/**
- * All client-side event handlers for the drone mod.
- *
- * In Forge 26.x every event class owns its own static BUS, so we subscribe
- * with EventBusType.BUS.addListener(...) instead of picking a MOD or FORGE bus.
- */
 public class DroneClientEvents {
 
-    /** Heading for our key in Options > Controls. Must be registered exactly once. */
     public static final KeyMapping.Category CATEGORY =
             KeyMapping.Category.register(
                     Identifier.fromNamespaceAndPath("fpvdrone", "main"));
 
-    /** Rebindable toggle key. 12 = SDL scancode for I. */
     public static final KeyMapping TOGGLE_DRONE = new KeyMapping(
             "key.fpvdrone.toggle",
             InputConstants.Type.KEYBOARD,
-            12,
+            12, // SDL scancode for I
             CATEGORY
     );
 
-    /**
-     * Call this once from your main mod class (client side only).
-     * It subscribes every handler to its event's bus.
-     */
+    // Tuning values
+    private static final float YAW_RATE_DEG_PER_SEC = 180f;
+    private static final float ROLL_PER_MOUSE_DEG = 1.0f;
+    private static final float PITCH_PER_MOUSE_DEG = 1.0f;
+
     public static void register() {
         RegisterKeyMappingsEvent.BUS.addListener(DroneClientEvents::onRegisterKeys);
         TickEvent.ClientTickEvent.Post.BUS.addListener(DroneClientEvents::onClientTick);
         ViewportEvent.ComputeCameraAngles.BUS.addListener(DroneClientEvents::onCameraAngles);
     }
 
-    /** Fires during startup while Minecraft collects key bindings. */
     private static void onRegisterKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_DRONE);
     }
 
-    /** Fires at the end of every client tick (20 times per second). */
     private static void onClientTick(TickEvent.ClientTickEvent.Post event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return; // title screen / loading
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) return;
 
-        // consumeClick() is true once per key press; the loop drains queued presses.
         while (TOGGLE_DRONE.consumeClick()) {
             if (DroneState.active) {
-                DroneState.exit();
+                DroneState.exit(player);
             } else {
-                DroneState.enter(mc.player.getYRot(), mc.player.getXRot());
+                DroneState.enter(player);
             }
         }
     }
 
     /**
-     * Fires every frame while the camera angles are computed.
-     * Replaces vanilla's angles with the drone's.
+     * Runs every frame. Order of work:
+     *   1. Measure mouse movement (how far vanilla turned the player's head).
+     *   2. Snap the head back so it never drifts.
+     *   3. Apply mouse + key input to the quaternion, in the drone's local axes.
+     *   4. Convert the quaternion to yaw/pitch/roll for the camera.
      */
     private static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         if (!DroneState.active) return;
 
-        event.setYaw(DroneState.yaw);
-        event.setPitch(DroneState.pitch);
-        event.setRoll(DroneState.roll);
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null) return;
+
+        // 1. Mouse deltas, in degrees (how far vanilla turned the head).
+        float mouseX = player.getYRot() - DroneState.lockedYaw;
+        float mouseY = player.getXRot() - DroneState.LOCKED_PITCH;
+
+        // 2. Undo vanilla's head turn.
+        DroneState.pinPlayerHead(player);
+
+        // Frame time for rate-based input.
+        long now = System.nanoTime();
+        float dt = (now - DroneState.lastNanos) / 1_000_000_000f;
+        DroneState.lastNanos = now;
+
+        // 3. Apply input in the drone's local axes.
+        float yawInput = (mc.options.keyRight.isDown() ? 1f : 0f)
+                - (mc.options.keyLeft.isDown() ? 1f : 0f);
+
+        DroneState.orientation
+                .rotateX(-(float) Math.toRadians(mouseY * PITCH_PER_MOUSE_DEG))
+                .rotateZ(-(float) Math.toRadians(mouseX * ROLL_PER_MOUSE_DEG))
+                .rotateY(-(float) Math.toRadians(yawInput * YAW_RATE_DEG_PER_SEC * dt))
+                .normalize();
+
+        // No event.setYaw/Pitch/Roll: CameraMixin applies the quaternion directly.
     }
 }
