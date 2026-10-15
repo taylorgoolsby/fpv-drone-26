@@ -7,11 +7,13 @@ public class DroneState {
 
     public static boolean active = false;
 
+    /** How far the camera is tilted UP relative to the drone's body, in degrees. */
+    public static final float CAMERA_TILT_DEG = 25f;
+    private static final float CAMERA_TILT_RAD = (float) Math.toRadians(CAMERA_TILT_DEG);
+
     /**
-     * The camera's full 3D orientation. Rotating with rotateX/Y/Z on a
-     * quaternion applies the rotation in the drone's OWN (local) axes,
-     * which is what makes FPV flight feel right: pitch is always "nose
-     * up/down" relative to the drone, even when it's rolled sideways.
+     * The drone BODY's orientation. All flight input rotates this, in the
+     * body's own local axes. (Later, thrust will act along this body's up axis.)
      */
     public static final Quaternionf orientation = new Quaternionf();
 
@@ -26,6 +28,16 @@ public class DroneState {
     // For frame-time-based (rate) input.
     public static long lastNanos;
 
+    /**
+     * Writes the CAMERA's orientation into dest and returns it:
+     * the body orientation, then tilted up by CAMERA_TILT_DEG around the
+     * body's own X (pitch) axis. rotateX post-multiplies, so the tilt is
+     * applied in the body's local frame. Positive X rotation tilts up.
+     */
+    public static Quaternionf getCameraOrientation(Quaternionf dest) {
+        return dest.set(orientation).rotateX(CAMERA_TILT_RAD);
+    }
+
     public static void enter(LocalPlayer player) {
         active = true;
 
@@ -33,12 +45,14 @@ public class DroneState {
         origPitch = player.getXRot();
         lockedYaw = origYaw;
 
-        // Start the drone looking exactly where the player was looking.
-        // Matches the camera's yaw/pitch/roll convention (YXZ order).
-        orientation.identity().rotationYXZ(
-                (float) Math.PI - (float) Math.toRadians(origYaw),
-                -(float) Math.toRadians(origPitch),
-                0f);
+        // We want the CAMERA to start exactly where the player was looking,
+        // so the body starts as that view with the camera tilt removed
+        // (the body begins pitched down by the tilt angle).
+        orientation.rotationYXZ(
+                        (float) Math.PI - (float) Math.toRadians(origYaw),
+                        -(float) Math.toRadians(origPitch),
+                        0f)
+                .rotateX(-CAMERA_TILT_RAD);
 
         pinPlayerHead(player);
         lastNanos = System.nanoTime();
