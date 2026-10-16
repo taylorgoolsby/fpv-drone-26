@@ -8,6 +8,8 @@ import org.joml.Vector3f;
 
 public class DroneState {
 
+    public static volatile java.util.UUID activeUuid = null;
+
     public static boolean active = false;
 
     public static final float CAMERA_TILT_DEG = 25f;
@@ -40,6 +42,7 @@ public class DroneState {
 
     public static void enter(LocalPlayer player) {
         active = true;
+        activeUuid = player.getUUID();
 
         origYaw = player.getYRot();
         origPitch = player.getXRot();
@@ -56,6 +59,7 @@ public class DroneState {
         throttle = HOVER_THROTTLE;
 
         player.refreshDimensions();
+        refreshServerPlayer(player);
         pinPlayerHead(player);
 
         lastNanos = System.nanoTime();
@@ -63,15 +67,28 @@ public class DroneState {
 
     public static void exit(LocalPlayer player) {
         active = false;
+        activeUuid = null;
 
         velocity.zero();
 
         player.refreshDimensions();
+        refreshServerPlayer(player);
 
         player.setYRot(origYaw);
         player.setXRot(origPitch);
         player.yRotO = origYaw;
         player.xRotO = origPitch;
+    }
+
+    private static void refreshServerPlayer(LocalPlayer player) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) return;
+        java.util.UUID id = player.getUUID();
+        server.execute(() -> {
+            net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
+            if (sp != null) sp.refreshDimensions();
+        });
     }
 
     public static void pinPlayerHead(LocalPlayer player) {
