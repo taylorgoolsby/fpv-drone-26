@@ -1,4 +1,3 @@
-
 package com.taylorgoolsby.fpvdrone;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -74,10 +73,19 @@ public class DroneClientEvents {
 
         if (player == null) return;
 
+        // Death cleanup: leave drone mode so the server's registry flag is
+        // cleared too, and the respawned player doesn't keep the small hitbox.
+        if (DroneState.active && player.isDeadOrDying()) {
+            DroneState.exit(player);
+            // Discard any toggle presses made while dead.
+            while (TOGGLE_DRONE.consumeClick()) { }
+            return;
+        }
+
         while (TOGGLE_DRONE.consumeClick()) {
             if (DroneState.active) {
                 DroneState.exit(player);
-            } else {
+            } else if (!player.isDeadOrDying()) {
                 DroneState.enter(player);
             }
 

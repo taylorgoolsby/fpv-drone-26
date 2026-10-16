@@ -35,6 +35,7 @@ minecraft {
 
         register('server') {
             args '--nogui'
+            args '-mixin.config=fpvdrone.mixins.json'
         }
 
         register('gameTestServer')

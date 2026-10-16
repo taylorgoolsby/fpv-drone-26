@@ -1,10 +1,10 @@
 package com.taylorgoolsby.fpvdrone.mixin;
 
-import com.taylorgoolsby.fpvdrone.DroneState;
-import net.minecraft.client.player.LocalPlayer;
+import com.taylorgoolsby.fpvdrone.DroneRegistry;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,10 +21,8 @@ public abstract class PlayerDimensionsMixin {
             Pose pose,
             CallbackInfoReturnable<EntityDimensions> cir
     ) {
-        java.util.UUID id = DroneState.activeUuid;
-        if (id != null
-                && (Object) this instanceof net.minecraft.world.entity.player.Player p
-                && id.equals(p.getUUID())) {
+        if ((Object) this instanceof Player p
+                && DroneRegistry.isDrone(p.getUUID())) {
             cir.setReturnValue(FPV_DIMENSIONS);
         }
     }

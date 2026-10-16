@@ -6,9 +6,11 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+/**
+ * Client-only drone state. Imports LocalPlayer, so it must never be loaded
+ * on a dedicated server. Server-safe shared state lives in DroneRegistry.
+ */
 public class DroneState {
-
-    public static volatile java.util.UUID activeUuid = null;
 
     public static boolean active = false;
 
@@ -42,7 +44,9 @@ public class DroneState {
 
     public static void enter(LocalPlayer player) {
         active = true;
-        activeUuid = player.getUUID();
+
+        // Registry must be set BEFORE refreshDimensions(), which reads it.
+        DroneRegistry.set(player.getUUID(), true);
 
         origYaw = player.getYRot();
         origPitch = player.getXRot();
@@ -59,20 +63,23 @@ public class DroneState {
         throttle = HOVER_THROTTLE;
 
         player.refreshDimensions();
-        refreshServerPlayer(player);
         pinPlayerHead(player);
+
+        // Tell the server so its ServerPlayer uses the same small hitbox.
+        DroneNetwork.sendToggle(true);
 
         lastNanos = System.nanoTime();
     }
 
     public static void exit(LocalPlayer player) {
         active = false;
-        activeUuid = null;
+
+        DroneRegistry.set(player.getUUID(), false);
 
         velocity.zero();
 
         player.refreshDimensions();
-        refreshServerPlayer(player);
+        DroneNetwork.sendToggle(false);
 
         player.setYRot(origYaw);
         player.setXRot(origPitch);
@@ -80,15 +87,11 @@ public class DroneState {
         player.xRotO = origPitch;
     }
 
-    private static void refreshServerPlayer(LocalPlayer player) {
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
-        if (server == null) return;
-        java.util.UUID id = player.getUUID();
-        server.execute(() -> {
-            net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
-            if (sp != null) sp.refreshDimensions();
-        });
+    /** Clears drone state without needing a player. Call on disconnect. */
+    public static void reset() {
+        active = false;
+        velocity.zero();
+        DroneRegistry.clear();
     }
 
     public static void pinPlayerHead(LocalPlayer player) {
