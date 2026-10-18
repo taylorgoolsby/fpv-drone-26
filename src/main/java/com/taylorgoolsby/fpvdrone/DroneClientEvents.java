@@ -73,6 +73,10 @@ public class DroneClientEvents {
 
         if (player == null) return;
 
+        // Detect / hot-plug controllers even when not in drone mode,
+        // so the controller is found before takeoff.
+        DroneController.tick(mc);
+
         // Death cleanup: leave drone mode so the server's registry flag is
         // cleared too, and the respawned player doesn't keep the small hitbox.
         if (DroneState.active && player.isDeadOrDying()) {
@@ -132,16 +136,30 @@ public class DroneClientEvents {
                 (physicallyDown(mc.options.keyUp) ? 1f : 0f)
                         - (physicallyDown(mc.options.keyDown) ? 1f : 0f);
 
+        float pitchDeg = mouseY * PITCH_PER_MOUSE_DEG;
+        float rollDeg = mouseX * ROLL_PER_MOUSE_DEG;
+        float yawDeg = yawInput * YAW_RATE_DEG_PER_SEC * dt;
+
+        if (DroneController.poll()) {
+            pitchDeg += DroneController.pitch * DroneController.pitchRate * dt;
+            rollDeg += DroneController.roll * DroneController.rollRate * dt;
+            yawDeg += DroneController.yaw * DroneController.yawRate * dt;
+
+            if (DroneController.directThrottle) {
+                // RC transmitter: stick position IS the throttle.
+                DroneState.throttle = DroneController.throttle;
+                throttleInput = 0f;
+            } else {
+                // Gamepad: stick drives the existing throttle integrator.
+                throttleInput = Math.max(-1f, Math.min(1f,
+                        throttleInput + DroneController.throttle));
+            }
+        }
+
         DroneState.orientation
-                .rotateX(-(float) Math.toRadians(
-                        mouseY * PITCH_PER_MOUSE_DEG
-                ))
-                .rotateZ(-(float) Math.toRadians(
-                        mouseX * ROLL_PER_MOUSE_DEG
-                ))
-                .rotateY(-(float) Math.toRadians(
-                        yawInput * YAW_RATE_DEG_PER_SEC * dt
-                ))
+                .rotateX(-(float) Math.toRadians(pitchDeg))
+                .rotateZ(-(float) Math.toRadians(rollDeg))
+                .rotateY(-(float) Math.toRadians(yawDeg))
                 .normalize();
 
         // Position is updated by player.move() inside stepPhysics().
