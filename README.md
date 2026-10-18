@@ -16,7 +16,9 @@ This is the repo for Minecraft FPV mod ported to MC version 26.3. It is still a 
 
 ### Running
 
-If you would like to run this project, clone the repo and open it in IntelliJ. Then in a console, run `./gradlew runClient`.
+If you would like to run this project, clone the repo and open it in IntelliJ. 
+
+Then in a console, run `./gradlew runClient`.
 
 Note that in `build.gradle`, there is a line:
 
