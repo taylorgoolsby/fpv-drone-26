@@ -25,3 +25,13 @@ jvmArgs '-XstartOnFirstThread'
 ```
 
 Remove this if you are not on mac. It is only needed on mac.
+
+### Building
+
+To produce a .jar, run `./gradlew build`.
+
+The output will be in:
+
+```
+build/libs/
+```
