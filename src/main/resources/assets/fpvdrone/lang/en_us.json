@@ -1,4 +1,6 @@
 {
   "key.fpvdrone.toggle": "Toggle Drone Mode",
-  "key.category.fpvdrone.main": "FPV Drone"
+  "key.category.fpvdrone.main": "FPV Drone",
+  "fpvdrone.settings.button": "FPV Settings",
+  "fpvdrone.settings.title": "FPV Settings"
 }
