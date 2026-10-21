@@ -1,16 +1,14 @@
 package com.taylorgoolsby.fpvdrone.screen;
 
+import com.taylorgoolsby.fpvdrone.DroneController;
 import net.minecraft.client.Options;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Top-level settings screen for the FPV Drone mod.
- *
- * Extends OptionsSubScreen so it gets the vanilla options look for free:
- * title header, scrolling OptionsList, a "Done" footer button, and
- * returning to the previous screen on close.
+ * Top-level settings screen for the FPV Drone mod. Hub for the sub-screens.
  */
 public class FpvSettingsScreen extends OptionsSubScreen {
     private static final Component TITLE =
@@ -22,8 +20,23 @@ public class FpvSettingsScreen extends OptionsSubScreen {
 
     @Override
     protected void addOptions() {
-        // Nothing yet. Add settings here (this.list is non-null at this point),
-        // e.g. this.list.addSmall(...) / this.list.addBig(...), or buttons
-        // that open further sub-screens.
+        Button controller = Button.builder(
+                Component.translatable("fpvdrone.settings.controller"),
+                b -> this.minecraft.gui.setScreen(
+                        new ControllerSelectScreen(this, this.options))
+        ).build();
+
+        Button bindings = Button.builder(
+                Component.translatable("fpvdrone.settings.bindings"),
+                b -> this.minecraft.gui.setScreen(
+                        new ControllerBindingsScreen(this, this.options))
+        ).build();
+
+        // Bindings only make sense once a controller is connected. This is
+        // evaluated each time the screen is (re)initialised, including when
+        // returning from the controller selection screen.
+        bindings.active = DroneController.isConnected();
+
+        this.list.addSmall(controller, bindings);
     }
 }

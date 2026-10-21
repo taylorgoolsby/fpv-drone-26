@@ -1,6 +1,39 @@
 {
   "key.fpvdrone.toggle": "Toggle Drone Mode",
   "key.category.fpvdrone.main": "FPV Drone",
+
   "fpvdrone.settings.button": "FPV Settings",
-  "fpvdrone.settings.title": "FPV Settings"
+  "fpvdrone.settings.title": "FPV Settings",
+  "fpvdrone.settings.controller": "Controller...",
+  "fpvdrone.settings.bindings": "Controller Bindings...",
+
+  "fpvdrone.controller.title": "Select Controller",
+  "fpvdrone.controller.refresh": "Refresh Device List",
+  "fpvdrone.controller.auto": "Auto-detect (first controller found)",
+  "fpvdrone.controller.none": "No controllers found",
+  "fpvdrone.controller.kind.gamepad": " (gamepad)",
+  "fpvdrone.controller.kind.raw": " (RC / joystick)",
+
+  "fpvdrone.bindings.title": "Controller Bindings",
+  "fpvdrone.bindings.controller": "Controller: %s",
+  "fpvdrone.bindings.none": "No controller connected",
+  "fpvdrone.bindings.entry": "%s: %s",
+  "fpvdrone.bindings.invert": "Invert: %s",
+  "fpvdrone.bindings.reset": "Reset to Defaults",
+  "fpvdrone.bindings.listening.roll": "> Move the stick RIGHT <",
+  "fpvdrone.bindings.listening.pitch": "> Move the stick FORWARD <",
+  "fpvdrone.bindings.listening.yaw": "> Move the stick RIGHT <",
+  "fpvdrone.bindings.listening.throttle": "> Move the stick UP <",
+
+  "fpvdrone.axis.roll": "Roll",
+  "fpvdrone.axis.pitch": "Pitch",
+  "fpvdrone.axis.yaw": "Yaw",
+  "fpvdrone.axis.throttle": "Throttle",
+  "fpvdrone.axis.raw": "Axis %s",
+  "fpvdrone.axis.gamepad.0": "Left Stick X",
+  "fpvdrone.axis.gamepad.1": "Left Stick Y",
+  "fpvdrone.axis.gamepad.2": "Right Stick X",
+  "fpvdrone.axis.gamepad.3": "Right Stick Y",
+  "fpvdrone.axis.gamepad.4": "Left Trigger",
+  "fpvdrone.axis.gamepad.5": "Right Trigger"
 }

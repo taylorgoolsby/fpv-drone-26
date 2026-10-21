@@ -71,11 +71,12 @@ public class DroneClientEvents {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
 
-        if (player == null) return;
-
-        // Detect / hot-plug controllers even when not in drone mode,
-        // so the controller is found before takeoff.
+        // Detect / hot-plug controllers even when not in drone mode (and
+        // even with no world loaded) so the controller is found before
+        // takeoff and the settings screens work from the title screen.
         DroneController.tick(mc);
+
+        if (player == null) return;
 
         // Death cleanup: leave drone mode so the server's registry flag is
         // cleared too, and the respawned player doesn't keep the small hitbox.
