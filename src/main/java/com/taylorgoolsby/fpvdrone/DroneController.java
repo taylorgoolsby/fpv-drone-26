@@ -57,6 +57,7 @@ public final class DroneController {
     private static boolean isGamepad;
     private static String name = "";
     private static String connectedId = "";
+    private static boolean virtual;
     private static int scanCooldown;
     private static boolean sdlReady;
 
@@ -115,6 +116,11 @@ public final class DroneController {
         return name;
     }
 
+    /** True if the connected device is the keyboard-driven test joystick. */
+    public static boolean isVirtual() {
+        return virtual;
+    }
+
     /** Id of the connected device, or "" if none. */
     public static String connectedId() {
         return connectedId;
@@ -139,6 +145,8 @@ public final class DroneController {
         ensureConfig();
         List<Device> out = new ArrayList<>();
         if (!ensureSdl()) return out;
+
+        VirtualJoystick.ensureAttached();
 
         SDLJoystick.SDL_UpdateJoysticks();
         IntBuffer ids = SDLJoystick.SDL_GetJoysticks();
@@ -215,6 +223,7 @@ public final class DroneController {
         ensureConfig();
         if (!ensureSdl()) return;
 
+        VirtualJoystick.tick(); // no-op unless -Dfpvdrone.virtual=true
         SDLJoystick.SDL_UpdateJoysticks();
 
         if (handle != 0L) {
@@ -269,6 +278,7 @@ public final class DroneController {
 
             name = deviceName(id);
             connectedId = key;
+            virtual = VirtualJoystick.isInstance(id);
 
             notify(mc, "Controller connected: " + name
                     + (isGamepad ? " (gamepad)" : " (RC/raw)"));
@@ -284,6 +294,7 @@ public final class DroneController {
         handle = 0L;
         name = "";
         connectedId = "";
+        virtual = false;
         roll = pitch = yaw = throttle = 0f;
         scanCooldown = 20;
     }

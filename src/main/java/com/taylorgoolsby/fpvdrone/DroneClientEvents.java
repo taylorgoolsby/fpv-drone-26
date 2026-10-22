@@ -142,6 +142,13 @@ public class DroneClientEvents {
         float yawDeg = yawInput * YAW_RATE_DEG_PER_SEC * dt;
 
         if (DroneController.poll()) {
+            // The virtual joystick is driven by WASD itself, so don't also
+            // apply the keyboard yaw/throttle (it would double up).
+            if (DroneController.isVirtual()) {
+                yawDeg = 0f;
+                throttleInput = 0f;
+            }
+
             pitchDeg += DroneController.pitch * DroneController.pitchRate * dt;
             rollDeg += DroneController.roll * DroneController.rollRate * dt;
             yawDeg += DroneController.yaw * DroneController.yawRate * dt;

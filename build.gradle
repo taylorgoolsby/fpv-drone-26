@@ -30,6 +30,8 @@ minecraft {
 
         register('client') {
             jvmArgs '-XstartOnFirstThread'
+            // Dev only: keyboard-driven virtual joystick (WASD + arrows). Remove to test with no controller.
+            systemProperty 'fpvdrone.virtual', 'true'
             args '-mixin.config=fpvdrone.mixins.json'
         }
 
