@@ -30,6 +30,13 @@ public class DroneState {
     public static final Vector3f velocity = new Vector3f();
     public static float throttle;
 
+    // Stick positions shown by the HUD overlay (see DroneHud), each -1..1.
+    // Written every frame by DroneClientEvents.
+    public static float hudRoll;      // +1 = right
+    public static float hudPitch;     // +1 = stick forward (nose down)
+    public static float hudYaw;       // +1 = right
+    public static float hudThrottle;  // -1 = zero throttle, +1 = full
+
     public static final float LOCKED_PITCH = 0f;
     public static float lockedYaw;
 
@@ -61,6 +68,8 @@ public class DroneState {
         position = player.position();
         velocity.zero();
         throttle = HOVER_THROTTLE;
+        hudRoll = hudPitch = hudYaw = 0f;
+        hudThrottle = HOVER_THROTTLE * 2f - 1f;
 
         player.refreshDimensions();
         pinPlayerHead(player);

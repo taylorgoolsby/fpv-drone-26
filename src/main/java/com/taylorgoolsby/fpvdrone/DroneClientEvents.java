@@ -28,6 +28,13 @@ public class DroneClientEvents {
     private static final float ROLL_PER_MOUSE_DEG = 1.0f;
     private static final float PITCH_PER_MOUSE_DEG = 1.0f;
 
+    // HUD only: mouse movement (degrees per frame) that counts as full stick,
+    // and how quickly the displayed mouse "stick" eases toward its target.
+    private static final float HUD_MOUSE_FULL_DEG = 6f;
+    private static final float HUD_MOUSE_SMOOTHING = 0.35f;
+    private static float hudMouseRoll;
+    private static float hudMousePitch;
+
     public static void register() {
         RegisterKeyMappingsEvent.BUS.addListener(
                 DroneClientEvents::onRegisterKeys
@@ -44,6 +51,8 @@ public class DroneClientEvents {
         ViewportEvent.ComputeCameraAngles.BUS.addListener(
                 DroneClientEvents::onCameraAngles
         );
+
+        DroneHud.register();
     }
 
     private static void onRegisterKeys(RegisterKeyMappingsEvent event) {
@@ -137,6 +146,16 @@ public class DroneClientEvents {
                 (physicallyDown(mc.options.keyUp) ? 1f : 0f)
                         - (physicallyDown(mc.options.keyDown) ? 1f : 0f);
 
+        // Mouse is relative, so show its per-frame movement as a smoothed stick.
+        hudMouseRoll += (clamp1(mouseX / HUD_MOUSE_FULL_DEG) - hudMouseRoll)
+                * HUD_MOUSE_SMOOTHING;
+        hudMousePitch += (clamp1(mouseY / HUD_MOUSE_FULL_DEG) - hudMousePitch)
+                * HUD_MOUSE_SMOOTHING;
+
+        float hudYaw = yawInput;
+        float hudRoll = hudMouseRoll;
+        float hudPitch = hudMousePitch;
+
         float pitchDeg = mouseY * PITCH_PER_MOUSE_DEG;
         float rollDeg = mouseX * ROLL_PER_MOUSE_DEG;
         float yawDeg = yawInput * YAW_RATE_DEG_PER_SEC * dt;
@@ -147,7 +166,12 @@ public class DroneClientEvents {
             if (DroneController.isVirtual()) {
                 yawDeg = 0f;
                 throttleInput = 0f;
+                hudYaw = 0f;
             }
+
+            hudYaw += DroneController.yaw;
+            hudRoll += DroneController.roll;
+            hudPitch += DroneController.pitch;
 
             pitchDeg += DroneController.pitch * DroneController.pitchRate * dt;
             rollDeg += DroneController.roll * DroneController.rollRate * dt;
@@ -178,5 +202,16 @@ public class DroneClientEvents {
         );
 
         DroneState.position = position;
+
+        // Throttle is shown as its actual level (0..1 -> stick -1..1), which
+        // is what a real throttle stick would be at for every input mode.
+        DroneState.hudYaw = clamp1(hudYaw);
+        DroneState.hudRoll = clamp1(hudRoll);
+        DroneState.hudPitch = clamp1(hudPitch);
+        DroneState.hudThrottle = DroneState.throttle * 2f - 1f;
+    }
+
+    private static float clamp1(float v) {
+        return Math.max(-1f, Math.min(1f, v));
     }
 }

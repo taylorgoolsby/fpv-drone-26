@@ -7,8 +7,8 @@ This is the repo for Minecraft FPV mod ported to MC version 26.3. It is still a 
 - [x] Camera rotation with camera tilt
 - [x] Basic drone physics
 - [x] Drone collision and dimensions on client and server
-- [ ] Controller support
-- [ ] Display controller inputs on HUD
+- [x] Controller support
+- [x] Display controller inputs on HUD
 - [ ] Advanced drone physics
 - [ ] FPV settings
 - [ ] Drone Model
