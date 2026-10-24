@@ -9,8 +9,8 @@ import org.lwjgl.system.MemoryStack;
  * Dev/test aid: a software SDL joystick driven by the keyboard, so the
  * controller screens and flight code can be tested with no hardware.
  *
- * Enabled only with the JVM flag -Dfpvdrone.virtual=true (set for runClient
- * in build.gradle). It behaves like a Mode 2 RC transmitter in AETR order,
+ * Enabled by default in every build. To turn it off, launch with the JVM
+ * flag -Dfpvdrone.virtual=false. It behaves like a Mode 2 RC transmitter in AETR order,
  * i.e. a raw (non-gamepad) device with 4 axes:
  *
  *   Right stick = arrow keys
@@ -27,7 +27,9 @@ import org.lwjgl.system.MemoryStack;
  */
 final class VirtualJoystick {
 
-    static final boolean ENABLED = Boolean.getBoolean("fpvdrone.virtual");
+    // On unless explicitly disabled with -Dfpvdrone.virtual=false.
+    static final boolean ENABLED =
+            !"false".equalsIgnoreCase(System.getProperty("fpvdrone.virtual"));
 
     private static final String NAME = "FPV Virtual Joystick (WASD + Arrows)";
 
