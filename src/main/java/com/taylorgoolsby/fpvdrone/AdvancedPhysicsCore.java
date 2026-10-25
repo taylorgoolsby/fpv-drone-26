@@ -14,7 +14,8 @@ import org.joml.Vector3f;
  *   - quadratic air drag on the airframe,
  *   - gravity.
  *
- * What it does NOT do: rotation. Attitude is still driven directly by the
+ * The drone build (mass, cells, kv, motor and prop dimensions) comes from
+ * DroneBuild. What it does NOT do: rotation. Attitude is still driven directly by the
  * sticks in DroneClientEvents (rate mode), and collisions are still resolved
  * by DroneState through player.move(). This class only turns
  * (throttle, orientation, velocity) into a new velocity.
@@ -24,25 +25,11 @@ import org.joml.Vector3f;
 public class AdvancedPhysicsCore {
 
     // ---------------------------------------------------------------------
-    // Drone build. Edit these to change how the drone flies.
+    // Fixed constants. The drone build (mass, cells, kv, motor and prop
+    // dimensions) comes from DroneBuild and is user-configurable.
     // ---------------------------------------------------------------------
 
     public static final float GRAVITY = 9.8f;           // m/s^2
-
-    private static final float DRONE_MASS = 0.65f;      // kg, with battery
-    private static final int BATTERY_CELLS = 4;
-    private static final float MOTOR_KV_RPM_PER_VOLT = 2000f;
-
-    private static final int BLADES = 3;
-    private static final float PROP_RADIUS = 0.0635f;   // m (5 inch prop)
-    private static final float PROP_PITCH = 0.10f;      // m per revolution
-    private static final float PROP_WIDTH = 0.015f;     // m, blade chord
-    private static final float BLADE_MASS = 0.0015f;    // kg per blade
-
-    private static final float MOTOR_MASS = 0.033f;     // kg
-    private static final float BELL_MASS = 0.012f;      // kg, rotating part
-    private static final float MOTOR_WIDTH = 0.023f;    // m, stator diameter
-    private static final float MOTOR_HEIGHT = 0.006f;   // m, stator height
 
     // Physical constants.
     private static final float AIR_DENSITY = 1.225f;            // kg/m^3
@@ -59,26 +46,40 @@ public class AdvancedPhysicsCore {
 
     // Internal simulation settings.
     private static final float MAX_TIME_STEP = 1f / 128f;
+    private static final float MIN_TIME_STEP = 1f / 1000f;
     private static final long MAX_STEP_BUDGET_NANOS = 66_000_000L;
     private static final int PROP_SECTIONS = 5;
 
-    /**
-     * Throttle (0..1) at which the drone hovers, found by simulating the
-     * motors and props at rest. Recomputed from the constants above, so it
-     * stays correct when the build is changed.
-     */
-    public static final float HOVER_THROTTLE = findHoverThrottle();
+    // Fallback winding resistance if the motor geometry gives nonsense.
+    private static final float FALLBACK_RESISTANCE = 0.03f;     // ohm
 
     // ---------------------------------------------------------------------
-    // Derived motor properties (computed once).
+    // Snapshot of the build, refreshed by applyBuildIfChanged().
     // ---------------------------------------------------------------------
 
-    private final float kv;               // rad/s per volt
-    private final float refResistance;    // ohm
-    private final float heatCap;          // J/K
-    private final float motorSurfaceArea; // m^2
-    private final float inertia;          // kg m^2
-    private final float dragFactor;       // kg/m
+    private int appliedVersion = -1;
+
+    private float droneMass;
+    private int batteryCells;
+    private int blades;
+    private float propRadius;
+    private float propPitch;
+    private float propWidth;
+    private float motorWidth;
+    private float motorHeight;
+    private float motorMass;
+    private float bellMass;
+    private float bladeMass;
+
+    // Derived.
+    private float kv;               // rad/s per volt
+    private float refResistance;    // ohm
+    private float heatCap;          // J/K
+    private float motorSurfaceArea; // m^2
+    private float inertia;          // kg m^2
+    private float dragFactor;       // kg/m
+    private float maxTimeStep;      // s, small enough for the motor to stay stable
+    private float hoverThrottle;    // 0..1
 
     // ---------------------------------------------------------------------
     // State.
@@ -95,26 +96,67 @@ public class AdvancedPhysicsCore {
     private final Vector3f droneLeft = new Vector3f(1, 0, 0);
 
     public AdvancedPhysicsCore() {
-        kv = MOTOR_KV_RPM_PER_VOLT * (float) (2.0 * Math.PI / 60.0);
+        applyBuildIfChanged();
+        resetState(0f);
+    }
 
-        float R = MOTOR_WIDTH * 0.5f;
-        float poles = getPoles(MOTOR_WIDTH);
-        float slots = getSlots(MOTOR_WIDTH);
+    /**
+     * Re-reads the build from DroneBuild and recomputes everything derived
+     * from it, including the hover throttle. Does nothing if the build hasn't
+     * changed since the last call.
+     */
+    private void applyBuildIfChanged() {
+        int version = DroneBuild.getVersion();
+        if (version == appliedVersion) return;
+        appliedVersion = version;
 
-        heatCap = SPECIFIC_HEAT * MOTOR_MASS;
-        motorSurfaceArea = 2f * (float) Math.PI * R * MOTOR_HEIGHT
+        droneMass = DroneBuild.get(DroneBuild.Param.DRONE_MASS);
+        batteryCells = Math.round(DroneBuild.get(DroneBuild.Param.BATTERY_CELLS));
+        blades = Math.round(DroneBuild.get(DroneBuild.Param.BLADES));
+        propRadius = DroneBuild.get(DroneBuild.Param.PROP_RADIUS);
+        propPitch = DroneBuild.get(DroneBuild.Param.PROP_PITCH);
+        propWidth = DroneBuild.get(DroneBuild.Param.PROP_WIDTH);
+        motorWidth = DroneBuild.get(DroneBuild.Param.MOTOR_WIDTH);
+        motorHeight = DroneBuild.get(DroneBuild.Param.MOTOR_HEIGHT);
+        motorMass = DroneBuild.motorMass();
+        bellMass = DroneBuild.bellMass();
+        bladeMass = DroneBuild.bladeMass();
+
+        kv = DroneBuild.get(DroneBuild.Param.MOTOR_KV)
+                * (float) (2.0 * Math.PI / 60.0);
+
+        float R = motorWidth * 0.5f;
+        float poles = getPoles(motorWidth);
+        float slots = getSlots(motorWidth);
+
+        heatCap = SPECIFIC_HEAT * motorMass;
+        motorSurfaceArea = 2f * (float) Math.PI * R * motorHeight
                 + 2f * (float) Math.PI * R * R;
-        refResistance = computeRefResistance(R, MOTOR_HEIGHT, kv, poles, slots);
+
+        float resistance = computeRefResistance(R, motorHeight, kv, poles, slots);
+        if (Float.isNaN(resistance) || Float.isInfinite(resistance)
+                || resistance < 0.001f) {
+            resistance = FALLBACK_RESISTANCE;
+        }
+        refResistance = resistance;
+
         inertia = computeMotorInertia();
 
         // The airframe is modelled as a sphere of DRONE_DENSITY for drag.
         float radius = (float) Math.cbrt(
-                3f * DRONE_MASS / (DRONE_DENSITY * 4f * (float) Math.PI)
+                3f * droneMass / (DRONE_DENSITY * 4f * (float) Math.PI)
         );
         float area = (float) Math.PI * radius * radius;
         dragFactor = AIR_DENSITY * area * DRAG_COEFFICIENT / 2f;
 
-        reset(0f);
+        // The motor's speed settles with time constant R * kv^2 * J. RK4 is
+        // only stable for steps up to a few time constants, so keep the step
+        // below one.
+        float timeConstant = refResistance * kv * kv * inertia;
+        maxTimeStep = Math.max(MIN_TIME_STEP,
+                Math.min(MAX_TIME_STEP, timeConstant));
+
+        hoverThrottle = findHoverThrottle();
     }
 
     // ---------------------------------------------------------------------
@@ -127,6 +169,17 @@ public class AdvancedPhysicsCore {
      * Call when taking off so the drone doesn't start with dead motors.
      */
     public void reset(float throttle) {
+        applyBuildIfChanged();
+        resetState(throttle);
+    }
+
+    /** Throttle (0..1) at which the drone hovers. Can be above 1 if it can't. */
+    public float getHoverThrottle() {
+        applyBuildIfChanged();
+        return hoverThrottle;
+    }
+
+    private void resetState(float throttle) {
         for (int i = 0; i < 4; i++) {
             internalEnergy[i] = 0f;
             temp[i] = REF_TEMP;
@@ -138,16 +191,37 @@ public class AdvancedPhysicsCore {
         droneUp.set(0, 1, 0);
         droneLeft.set(1, 0, 0);
 
+        // Start the motors at the speed they settle at for this throttle, so
+        // the drone doesn't begin with dead motors and the answer doesn't
+        // depend on how long the motors take to spin up.
         float vbat = getBatteryVoltage(clamp01(throttle));
-        for (float t = 0f; t < 0.25f; t += MAX_TIME_STEP) {
-            for (int motor = 0; motor < 4; motor++) {
-                float useVbat = (motor % 2 == 0 ? -1f : 1f) * vbat;
-                motorVel[motor] = advanceMotorVel(
-                        motor, motorVel[motor], MAX_TIME_STEP, useVbat,
-                        temp[motor]
-                );
+        for (int motor = 0; motor < 4; motor++) {
+            float useVbat = (motor % 2 == 0 ? -1f : 1f) * vbat;
+            motorVel[motor] = steadyMotorVel(motor, useVbat, temp[motor]);
+        }
+    }
+
+    /**
+     * The motor speed at which electrical torque balances prop drag, with the
+     * drone at rest. Net acceleration falls steadily as the motor speeds up,
+     * so a bisection finds the zero.
+     */
+    private float steadyMotorVel(int motorNumber, float vbat, float temp) {
+        if (vbat == 0f) return 0f;
+
+        float direction = Math.signum(vbat);
+        float lo = 0f;
+        float hi = direction * kv * batteryCells * 4.2f;
+        for (int i = 0; i < 40; i++) {
+            float mid = (lo + hi) * 0.5f;
+            float accel = getRotAccel(motorNumber, mid, vbat, temp);
+            if (accel * direction > 0f) {
+                lo = mid;   // still accelerating: the answer is faster
+            } else {
+                hi = mid;
             }
         }
+        return (lo + hi) * 0.5f;
     }
 
     /**
@@ -167,6 +241,8 @@ public class AdvancedPhysicsCore {
     ) {
         long tic = System.nanoTime();
 
+        applyBuildIfChanged();
+
         orientation.transform(new Vector3f(0f, 1f, 0f), droneUp);
         Vector3f droneLook = orientation.transform(
                 new Vector3f(0f, 0f, -1f), new Vector3f()
@@ -176,13 +252,13 @@ public class AdvancedPhysicsCore {
         velocity.set(vel);
 
         float vbat = getBatteryVoltage(clamp01(throttle));
-        Vector3f gravityForce = new Vector3f(0f, -GRAVITY * DRONE_MASS, 0f);
+        Vector3f gravityForce = new Vector3f(0f, -GRAVITY * droneMass, 0f);
 
-        int maxIterations = (int) (dt / MAX_TIME_STEP) + 10;
+        int maxIterations = (int) (dt / maxTimeStep) + 10;
         float timeProcessed = 0f;
         for (int i = 0; i < maxIterations && (dt - timeProcessed) > 0.00001f;
              i++) {
-            float timeStep = Math.min(MAX_TIME_STEP, dt - timeProcessed);
+            float timeStep = Math.min(maxTimeStep, dt - timeProcessed);
 
             // Quadratic drag: speed^2 * dragFactor, opposite to velocity.
             float speed = velocity.length();
@@ -216,7 +292,7 @@ public class AdvancedPhysicsCore {
                 motorVel[motor] = nextMotorVel;
             }
 
-            velocity.fma(timeStep / DRONE_MASS, netForce);
+            velocity.fma(timeStep / droneMass, netForce);
 
             timeProcessed += timeStep;
 
@@ -255,21 +331,24 @@ public class AdvancedPhysicsCore {
     // Hover throttle search
     // ---------------------------------------------------------------------
 
-    private static float findHoverThrottle() {
-        AdvancedPhysicsCore core = new AdvancedPhysicsCore();
-        float weight = DRONE_MASS * GRAVITY;
+    private float findHoverThrottle() {
+        float weight = droneMass * GRAVITY;
 
         float lo = 0f;
         float hi = 1f;
         for (int i = 0; i < 16; i++) {
             float mid = (lo + hi) * 0.5f;
-            core.reset(mid);
-            if (core.totalThrust() < weight) {
+            resetState(mid);
+            if (totalThrust() < weight) {
                 lo = mid;
             } else {
                 hi = mid;
             }
         }
+        // If even full throttle can't lift the drone, say so rather than
+        // returning something that looks like a hover.
+        resetState(1f);
+        if (totalThrust() < weight) return 1f;
         return (lo + hi) * 0.5f;
     }
 
@@ -470,11 +549,11 @@ public class AdvancedPhysicsCore {
 
         // Rotation angle 0 is droneRight.
         float initRotationAngle = motorPos[motorNumber];
-        float sectionLength = PROP_RADIUS / PROP_SECTIONS;
+        float sectionLength = propRadius / PROP_SECTIONS;
 
-        for (int i = 0; i < BLADES; i++) {
+        for (int i = 0; i < blades; i++) {
             float rotationAngle = initRotationAngle
-                    + (float) (2.0 * Math.PI) * i / BLADES;
+                    + (float) (2.0 * Math.PI) * i / blades;
             Vector3f motorToProp = getMotorToProp(
                     rotationAngle, droneUp, droneRight
             );
@@ -482,18 +561,18 @@ public class AdvancedPhysicsCore {
             // Each radial section has its own airflow and angle of attack.
             for (int j = 0; j < PROP_SECTIONS; j++) {
                 // Measure from the middle of the section.
-                float sectionRadius = (j + 0.5f) / PROP_SECTIONS * PROP_RADIUS;
+                float sectionRadius = (j + 0.5f) / PROP_SECTIONS * propRadius;
 
-                if (sectionRadius < MOTOR_WIDTH * 0.5f) {
+                if (sectionRadius < motorWidth * 0.5f) {
                     // The part of the prop over the motor makes no lift or
                     // drag.
                     continue;
                 }
 
                 // Blade chord tapers to 0 toward the hub.
-                float sectionWidth = PROP_WIDTH;
-                if (sectionRadius < MOTOR_WIDTH) {
-                    sectionWidth *= sectionRadius / MOTOR_WIDTH;
+                float sectionWidth = propWidth;
+                if (sectionRadius < motorWidth) {
+                    sectionWidth *= sectionRadius / motorWidth;
                 }
 
                 Vector3f worldPropVelocity = getWorldPropVelocity(
@@ -503,7 +582,7 @@ public class AdvancedPhysicsCore {
                         worldPropVelocity, worldVelocityFree, motorToProp
                 );
                 float aoa = getAoA(
-                        motorNumber, PROP_PITCH, sectionRadius,
+                        motorNumber, propPitch, sectionRadius,
                         freeVelRelPropPlanar, droneUp, motorToProp
                 );
                 float dragCoefficient = getPropDragCoefficient(aoa);
@@ -621,12 +700,12 @@ public class AdvancedPhysicsCore {
         return wireLengthInches / 12f / 1000f * RESISTANCE_PER_1000_FT;
     }
 
-    private static float computeMotorInertia() {
-        float bladeLength = PROP_RADIUS;
-        float propInertia = BLADES / 12f * BLADE_MASS
-                * (4f * bladeLength * bladeLength + PROP_WIDTH * PROP_WIDTH);
-        float bellInertia = BELL_MASS * (MOTOR_WIDTH * 0.5f)
-                * (MOTOR_WIDTH * 0.5f);
+    private float computeMotorInertia() {
+        float bladeLength = propRadius;
+        float propInertia = blades / 12f * bladeMass
+                * (4f * bladeLength * bladeLength + propWidth * propWidth);
+        float bellInertia = bellMass * (motorWidth * 0.5f)
+                * (motorWidth * 0.5f);
         return propInertia + bellInertia;
     }
 
@@ -681,7 +760,7 @@ public class AdvancedPhysicsCore {
             nextVel = 0f;
         }
 
-        float maxSpeed = kv * BATTERY_CELLS * 4.2f;
+        float maxSpeed = kv * batteryCells * 4.2f;
         if (Math.abs(nextVel) > maxSpeed) {
             nextVel = maxSpeed * Math.signum(nextVel);
         }
@@ -692,7 +771,7 @@ public class AdvancedPhysicsCore {
     private float getBatteryVoltage(float throt) {
         // Voltage sags a little under load.
         float sag = 4.0f + Math.abs(throt) * (3.6f - 4.0f);
-        return sag * BATTERY_CELLS * throt;
+        return sag * batteryCells * throt;
     }
 
     // ---------------------------------------------------------------------

@@ -18,9 +18,8 @@ public class DroneState {
     private static final float CAMERA_TILT_RAD =
             (float) Math.toRadians(CAMERA_TILT_DEG);
 
-    // Thrust, drag, gravity and motor behaviour come from AdvancedPhysicsCore.
-    public static final float HOVER_THROTTLE =
-            AdvancedPhysicsCore.HOVER_THROTTLE;
+    // Thrust, drag, gravity and motor behaviour come from AdvancedPhysicsCore,
+    // configured by DroneBuild (FPV Settings > Build).
     public static final float THROTTLE_RATE = 0.6f;
 
     private static final AdvancedPhysicsCore physics =
@@ -68,10 +67,10 @@ public class DroneState {
 
         position = player.position();
         velocity.zero();
-        throttle = HOVER_THROTTLE;
+        throttle = physics.getHoverThrottle();
         physics.reset(throttle);
         hudRoll = hudPitch = hudYaw = 0f;
-        hudThrottle = HOVER_THROTTLE * 2f - 1f;
+        hudThrottle = throttle * 2f - 1f;
 
         player.refreshDimensions();
         pinPlayerHead(player);
