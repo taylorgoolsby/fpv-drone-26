@@ -6,6 +6,7 @@
   "fpvdrone.settings.title": "FPV Settings",
   "fpvdrone.settings.controller": "Controller...",
   "fpvdrone.settings.bindings": "Controller Bindings...",
+  "fpvdrone.settings.rates": "Rates...",
   "fpvdrone.settings.other": "Other Settings...",
 
   "fpvdrone.controller.title": "Select Controller",
@@ -14,6 +15,13 @@
   "fpvdrone.controller.none": "No controllers found",
   "fpvdrone.controller.kind.gamepad": " (gamepad)",
   "fpvdrone.controller.kind.raw": " (RC / joystick)",
+
+  "fpvdrone.rates.title": "Rates",
+  "fpvdrone.rates.slider": "%s %s: %s",
+  "fpvdrone.rates.param.rate": "Rate",
+  "fpvdrone.rates.param.super": "Super",
+  "fpvdrone.rates.param.expo": "Expo",
+  "fpvdrone.rates.reset": "Reset to Defaults",
 
   "fpvdrone.other.title": "Other Settings",
   "fpvdrone.other.show_axis_values": "Show Raw Axis Values: %s",

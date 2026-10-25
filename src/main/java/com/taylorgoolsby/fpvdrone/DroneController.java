@@ -61,6 +61,14 @@ public final class DroneController {
     public static float rawYaw;
     public static float rawThrottle;
 
+    /**
+     * Commanded angular rates in deg/s after deadzone, expo, rate and super
+     * rate are applied. Same signs as roll/pitch/yaw above.
+     */
+    public static float rollDegPerSec;
+    public static float pitchDegPerSec;
+    public static float yawDegPerSec;
+
     // ---- Readout of the unscaled SDL axis values ----
     /**
      * Shows each axis' raw SDL value (-32768..32767) in the action bar.
@@ -83,10 +91,29 @@ public final class DroneController {
 
     // ---- Config (defaults) ----
     private static float deadzone = 0.05f;
-    private static float expo = 0.3f;
-    public static float rollRate = 540f;   // deg/s at full stick
-    public static float pitchRate = 540f;
-    public static float yawRate = 360f;
+
+    // Betaflight-style rates, per axis (indexed by Axis.ordinal(); the
+    // throttle slot is unused).
+    //   rcRate    : center sensitivity. 1.00 = 200 deg/s per unit of stick.
+    //   superRate : how steeply the rate climbs toward full stick.
+    //   expo      : softens the stick around center.
+    public static final float RC_RATE_MIN = 0.01f;
+    public static final float RC_RATE_MAX = 2.55f;
+    public static final float SUPER_RATE_MIN = 0f;
+    public static final float SUPER_RATE_MAX = 0.99f;
+    public static final float EXPO_MIN = 0f;
+    public static final float EXPO_MAX = 1f;
+
+    private static final float DEFAULT_RC_RATE = 1.0f;
+    private static final float DEFAULT_SUPER_RATE = 0.7f;
+    private static final float DEFAULT_EXPO = 0f;
+
+    private static final float[] rcRate = new float[Axis.values().length];
+    private static final float[] superRate = new float[Axis.values().length];
+    private static final float[] expo = new float[Axis.values().length];
+    static {
+        resetRates();
+    }
 
     /** Empty = auto-detect the first suitable controller. */
     private static String selectedId = "";
@@ -318,6 +345,7 @@ public final class DroneController {
         connectedId = "";
         virtual = false;
         roll = pitch = yaw = throttle = 0f;
+        rollDegPerSec = pitchDegPerSec = yawDegPerSec = 0f;
         rawRoll = rawPitch = rawYaw = rawThrottle = 0f;
         resetDebugRange();
         scanCooldown = 20;
@@ -350,6 +378,10 @@ public final class DroneController {
         roll = shape(rawRoll);
         pitch = shape(rawPitch);
         yaw = shape(rawYaw);
+
+        rollDegPerSec = rateDegPerSec(Axis.ROLL, roll);
+        pitchDegPerSec = rateDegPerSec(Axis.PITCH, pitch);
+        yawDegPerSec = rateDegPerSec(Axis.YAW, yaw);
 
         // Throttle stick maps directly: -1..1 -> 0..1, with no expo, no
         // deadzone and no integration, for gamepads and RC transmitters
@@ -420,13 +452,78 @@ public final class DroneController {
         return Math.max(-1f, Math.min(1f, raw / 32767f));
     }
 
-    /** Deadzone (rescaled so output starts at 0) + expo blend. */
+    /** Deadzone, rescaled so the output starts at 0. */
     private static float shape(float v) {
         float a = Math.abs(v);
         if (a < deadzone) return 0f;
         a = (a - deadzone) / (1f - deadzone);
-        a = (1f - expo) * a + expo * a * a * a;
         return Math.copySign(Math.min(a, 1f), v);
+    }
+
+    // ------------------------------------------------------------------
+    // Rates
+    // ------------------------------------------------------------------
+
+    /** Betaflight's "Betaflight" rate type. stick is -1..1; result in deg/s. */
+    public static float rateDegPerSec(Axis axis, float stick) {
+        int i = axis.ordinal();
+        float abs = Math.abs(stick);
+
+        float shaped = stick * abs * abs * expo[i] + stick * (1f - expo[i]);
+
+        float rate = rcRate[i];
+        if (rate > 2f) rate += 14.54f * (rate - 2f);
+
+        float degPerSec = 200f * rate * shaped;
+        if (superRate[i] > 0f) {
+            float factor = 1f / Math.max(0.01f,
+                    Math.min(1f, 1f - abs * superRate[i]));
+            degPerSec *= factor;
+        }
+        return degPerSec;
+    }
+
+    public static float getRcRate(Axis a) {
+        ensureConfig();
+        return rcRate[a.ordinal()];
+    }
+
+    public static float getSuperRate(Axis a) {
+        ensureConfig();
+        return superRate[a.ordinal()];
+    }
+
+    public static float getExpo(Axis a) {
+        ensureConfig();
+        return expo[a.ordinal()];
+    }
+
+    /** The setters don't save; call saveConfig() when done editing. */
+    public static void setRcRate(Axis a, float v) {
+        ensureConfig();
+        rcRate[a.ordinal()] = clamp(v, RC_RATE_MIN, RC_RATE_MAX);
+    }
+
+    public static void setSuperRate(Axis a, float v) {
+        ensureConfig();
+        superRate[a.ordinal()] = clamp(v, SUPER_RATE_MIN, SUPER_RATE_MAX);
+    }
+
+    public static void setExpo(Axis a, float v) {
+        ensureConfig();
+        expo[a.ordinal()] = clamp(v, EXPO_MIN, EXPO_MAX);
+    }
+
+    /** Restores the default rates for every axis and saves. */
+    public static void resetRates() {
+        java.util.Arrays.fill(rcRate, DEFAULT_RC_RATE);
+        java.util.Arrays.fill(superRate, DEFAULT_SUPER_RATE);
+        java.util.Arrays.fill(expo, DEFAULT_EXPO);
+        if (configLoaded) saveConfig();
+    }
+
+    private static float clamp(float v, float min, float max) {
+        return Math.max(min, Math.min(max, v));
     }
 
     // ------------------------------------------------------------------
@@ -574,10 +671,15 @@ public final class DroneController {
         }
 
         deadzone = getF(p, "deadzone", deadzone);
-        expo = getF(p, "expo", expo);
-        rollRate = getF(p, "roll_rate_deg_per_sec", rollRate);
-        pitchRate = getF(p, "pitch_rate_deg_per_sec", pitchRate);
-        yawRate = getF(p, "yaw_rate_deg_per_sec", yawRate);
+        for (Axis a : Axis.values()) {
+            int i = a.ordinal();
+            rcRate[i] = clamp(getF(p, a.key + "_rc_rate", rcRate[i]),
+                    RC_RATE_MIN, RC_RATE_MAX);
+            superRate[i] = clamp(getF(p, a.key + "_super_rate", superRate[i]),
+                    SUPER_RATE_MIN, SUPER_RATE_MAX);
+            expo[i] = clamp(getF(p, a.key + "_expo", expo[i]),
+                    EXPO_MIN, EXPO_MAX);
+        }
 
         selectedId = p.getProperty("selected_controller", "");
         showAxisValues = getB(p, "show_axis_values", showAxisValues);
@@ -597,10 +699,12 @@ public final class DroneController {
     public static void saveConfig() {
         Properties p = new Properties();
         p.setProperty("deadzone", String.valueOf(deadzone));
-        p.setProperty("expo", String.valueOf(expo));
-        p.setProperty("roll_rate_deg_per_sec", String.valueOf(rollRate));
-        p.setProperty("pitch_rate_deg_per_sec", String.valueOf(pitchRate));
-        p.setProperty("yaw_rate_deg_per_sec", String.valueOf(yawRate));
+        for (Axis a : Axis.values()) {
+            int i = a.ordinal();
+            p.setProperty(a.key + "_rc_rate", String.valueOf(rcRate[i]));
+            p.setProperty(a.key + "_super_rate", String.valueOf(superRate[i]));
+            p.setProperty(a.key + "_expo", String.valueOf(expo[i]));
+        }
         p.setProperty("selected_controller", selectedId);
         p.setProperty("show_axis_values", String.valueOf(showAxisValues));
 

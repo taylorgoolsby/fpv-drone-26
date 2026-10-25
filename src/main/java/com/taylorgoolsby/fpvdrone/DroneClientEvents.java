@@ -179,9 +179,9 @@ public class DroneClientEvents {
             hudPitch += DroneController.rawPitch;
             hudThrottle = DroneController.rawThrottle;
 
-            pitchDeg += DroneController.pitch * DroneController.pitchRate * dt;
-            rollDeg += DroneController.roll * DroneController.rollRate * dt;
-            yawDeg += DroneController.yaw * DroneController.yawRate * dt;
+            pitchDeg += DroneController.pitchDegPerSec * dt;
+            rollDeg += DroneController.rollDegPerSec * dt;
+            yawDeg += DroneController.yawDegPerSec * dt;
 
             // The throttle stick position IS the throttle (no integration).
             DroneState.throttle = DroneController.throttle;

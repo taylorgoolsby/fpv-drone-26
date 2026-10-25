@@ -43,7 +43,13 @@ public class FpvSettingsScreen extends OptionsSubScreen {
                         new OtherSettingsScreen(this, this.options))
         ).build();
 
+        Button rates = Button.builder(
+                Component.translatable("fpvdrone.settings.rates"),
+                b -> this.minecraft.gui.setScreen(
+                        new RatesSettingsScreen(this, this.options))
+        ).build();
+
         this.list.addSmall(controller, bindings);
-        this.list.addSmall(other, null);
+        this.list.addSmall(rates, other);
     }
 }
