@@ -11,7 +11,7 @@ import java.util.Properties;
 
 /**
  * The user-configurable drone build that AdvancedPhysicsCore simulates.
- * Values are stored in SI units (kg, m) and saved to
+ * Values are stored in SI units (kg, m; the camera angle in degrees) and saved to
  * config/fpvdrone-build.properties.
  *
  * Motor mass, bell mass and blade mass are not settings: they are derived
@@ -34,7 +34,9 @@ public final class DroneBuild {
         PROP_PITCH("prop_pitch", 0.10f, 0.03f, 0.25f, 0.001f, 1000f, 0, " mm"),
         PROP_WIDTH("prop_width", 0.015f, 0.005f, 0.040f, 0.0005f, 1000f, 1, " mm"),
         MOTOR_WIDTH("motor_width", 0.023f, 0.010f, 0.060f, 0.0005f, 1000f, 1, " mm"),
-        MOTOR_HEIGHT("motor_height", 0.006f, 0.003f, 0.030f, 0.0005f, 1000f, 1, " mm");
+        MOTOR_HEIGHT("motor_height", 0.006f, 0.003f, 0.030f, 0.0005f, 1000f, 1, " mm"),
+        /** Degrees the camera is tilted up from the drone's body. Stored in degrees. */
+        CAMERA_ANGLE("camera_angle", 25f, 0f, 70f, 1f, 1f, 0, "\u00b0");
 
         public final String key;
         public final float defaultValue;

@@ -13,7 +13,7 @@ import java.util.Locale;
 
 /**
  * The drone build used by the physics: mass, battery, motor and prop
- * dimensions. Motor and blade mass are derived from the dimensions and shown
+ * dimensions, plus the camera angle. Motor and blade mass are derived from the dimensions and shown
  * read-only. Changes are saved when the screen is closed and take effect the
  * next time drone mode is entered.
  */
@@ -47,7 +47,8 @@ public class BuildSettingsScreen extends OptionsSubScreen {
         this.list.addSmall(slider(Param.PROP_RADIUS), slider(Param.PROP_PITCH));
         this.list.addSmall(slider(Param.PROP_WIDTH), bladeMassLabel);
         this.list.addSmall(slider(Param.MOTOR_WIDTH), slider(Param.MOTOR_HEIGHT));
-        this.list.addSmall(motorMassLabel, reset);
+        this.list.addSmall(motorMassLabel, slider(Param.CAMERA_ANGLE));
+        this.list.addSmall(reset, null);
 
         updateDerivedLabels();
     }

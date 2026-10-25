@@ -36,6 +36,7 @@
   "fpvdrone.build.param.prop_width": "Prop Width",
   "fpvdrone.build.param.motor_width": "Motor Width",
   "fpvdrone.build.param.motor_height": "Motor Height",
+  "fpvdrone.build.param.camera_angle": "Camera Angle",
   "fpvdrone.build.blade_mass": "Blade Mass: %s",
   "fpvdrone.build.motor_mass": "Motor Mass: %s",
   "fpvdrone.build.reset": "Reset to Defaults",

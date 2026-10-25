@@ -14,9 +14,11 @@ public class DroneState {
 
     public static boolean active = false;
 
-    public static final float CAMERA_TILT_DEG = 25f;
-    private static final float CAMERA_TILT_RAD =
-            (float) Math.toRadians(CAMERA_TILT_DEG);
+    /** How far the camera is tilted up from the drone's body, in radians. */
+    private static float cameraTiltRad() {
+        return (float) Math.toRadians(
+                DroneBuild.get(DroneBuild.Param.CAMERA_ANGLE));
+    }
 
     // Thrust, drag, gravity and motor behaviour come from AdvancedPhysicsCore,
     // configured by DroneBuild (FPV Settings > Build).
@@ -46,7 +48,7 @@ public class DroneState {
     public static long lastNanos;
 
     public static Quaternionf getCameraOrientation(Quaternionf dest) {
-        return dest.set(orientation).rotateX(CAMERA_TILT_RAD);
+        return dest.set(orientation).rotateX(cameraTiltRad());
     }
 
     public static void enter(LocalPlayer player) {
@@ -63,7 +65,7 @@ public class DroneState {
                 (float) Math.PI - (float) Math.toRadians(origYaw),
                 -(float) Math.toRadians(origPitch),
                 0f
-        ).rotateX(-CAMERA_TILT_RAD);
+        ).rotateX(-cameraTiltRad());
 
         position = player.position();
         velocity.zero();
