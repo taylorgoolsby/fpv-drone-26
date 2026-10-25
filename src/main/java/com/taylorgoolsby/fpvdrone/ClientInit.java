@@ -13,6 +13,7 @@ final class ClientInit {
 
     static void init() {
         DroneClientEvents.register();
+        DroneHeadRender.register();
         FpvSettingsButton.register();
 
         // Reset drone state when disconnecting from a world or server.
