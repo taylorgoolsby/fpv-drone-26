@@ -48,9 +48,8 @@ public final class DroneController {
     public static float pitch;
     /** +1 = yaw right. */
     public static float yaw;
-    /** If directThrottle: 0..1 throttle. Otherwise -1..1 rate input for the integrator. */
+    /** 0..1 throttle. The stick position maps directly: -1 -> 0, +1 -> 1. */
     public static float throttle;
-    public static boolean directThrottle;
 
     // ---- State ----
     private static long handle = 0L;        // SDL_Gamepad* or SDL_Joystick*
@@ -263,7 +262,6 @@ public final class DroneController {
                 if (g == 0L) continue;
                 handle = g;
                 isGamepad = true;
-                directThrottle = false;
             } else {
                 long j = SDLJoystick.SDL_OpenJoystick(id);
                 if (j == 0L) continue;
@@ -273,7 +271,6 @@ public final class DroneController {
                 }
                 handle = j;
                 isGamepad = false;
-                directThrottle = true;
             }
 
             name = deviceName(id);
@@ -313,21 +310,16 @@ public final class DroneController {
     public static boolean poll() {
         if (handle == 0L) return false;
 
-        if (isGamepad) {
-            // Defaults are Mode 2: left = throttle/yaw, right = pitch/roll.
-            // Inversion (SDL stick-up is negative) lives in the bindings.
-            roll = shape(read(Axis.ROLL));
-            pitch = shape(read(Axis.PITCH));
-            yaw = shape(read(Axis.YAW));
-            throttle = shape(read(Axis.THROTTLE));
-            return true;
-        }
-
+        // Gamepad defaults are Mode 2: left = throttle/yaw, right =
+        // pitch/roll. Inversion (SDL stick-up is negative) lives in the
+        // bindings.
         roll = shape(read(Axis.ROLL));
         pitch = shape(read(Axis.PITCH));
         yaw = shape(read(Axis.YAW));
 
-        // Raw throttle: -1..1 -> 0..1, no expo, no deadzone around center.
+        // Throttle stick maps directly: -1..1 -> 0..1, with no expo, no
+        // deadzone and no integration, for gamepads and RC transmitters
+        // alike.
         float t = read(Axis.THROTTLE);
         throttle = Math.max(0f, Math.min(1f, (t + 1f) * 0.5f));
         return true;

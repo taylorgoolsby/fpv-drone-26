@@ -177,15 +177,9 @@ public class DroneClientEvents {
             rollDeg += DroneController.roll * DroneController.rollRate * dt;
             yawDeg += DroneController.yaw * DroneController.yawRate * dt;
 
-            if (DroneController.directThrottle) {
-                // RC transmitter: stick position IS the throttle.
-                DroneState.throttle = DroneController.throttle;
-                throttleInput = 0f;
-            } else {
-                // Gamepad: stick drives the existing throttle integrator.
-                throttleInput = Math.max(-1f, Math.min(1f,
-                        throttleInput + DroneController.throttle));
-            }
+            // The throttle stick position IS the throttle (no integration).
+            DroneState.throttle = DroneController.throttle;
+            throttleInput = 0f;
         }
 
         DroneState.orientation
