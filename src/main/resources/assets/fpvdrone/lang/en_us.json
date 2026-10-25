@@ -22,6 +22,7 @@
   "fpvdrone.rates.param.super": "Super",
   "fpvdrone.rates.param.expo": "Expo",
   "fpvdrone.rates.reset": "Reset to Defaults",
+  "fpvdrone.rates.full_stick": "Full stick: %s / %s / %s deg/s",
 
   "fpvdrone.other.title": "Other Settings",
   "fpvdrone.other.show_axis_values": "Show Raw Axis Values: %s",
