@@ -10,7 +10,7 @@ license="All Rights Reserved"
 
 [[mods]]
 modId="fpvdrone"
-version="1.0.2"
+version="1.0.3"
 displayName="FPV Drone"
 #updateJSONURL="https://example.com/updates.json" #optional
 #displayURL="https://example.com/" #optional
