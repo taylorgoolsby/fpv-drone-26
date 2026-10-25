@@ -37,6 +37,13 @@ public class FpvSettingsScreen extends OptionsSubScreen {
         // returning from the controller selection screen.
         bindings.active = DroneController.isConnected();
 
+        Button other = Button.builder(
+                Component.translatable("fpvdrone.settings.other"),
+                b -> this.minecraft.gui.setScreen(
+                        new OtherSettingsScreen(this, this.options))
+        ).build();
+
         this.list.addSmall(controller, bindings);
+        this.list.addSmall(other, null);
     }
 }

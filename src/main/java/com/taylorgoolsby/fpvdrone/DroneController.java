@@ -51,6 +51,27 @@ public final class DroneController {
     /** 0..1 throttle. The stick position maps directly: -1 -> 0, +1 -> 1. */
     public static float throttle;
 
+    /**
+     * Raw stick positions, -1..1, with only the axis binding and inversion
+     * applied: before deadzone, expo and rates. Same signs as above (throttle
+     * +1 = stick up). Used by the HUD.
+     */
+    public static float rawRoll;
+    public static float rawPitch;
+    public static float rawYaw;
+    public static float rawThrottle;
+
+    // ---- Readout of the unscaled SDL axis values ----
+    /**
+     * Shows each axis' raw SDL value (-32768..32767) in the action bar.
+     * Off by default; toggled in FPV Settings > Other Settings.
+     */
+    private static boolean showAxisValues = false;
+    private static final short[] debugRaw = new short[4];
+    private static final short[] debugMin = new short[4];
+    private static final short[] debugMax = new short[4];
+    private static int debugTicks;
+
     // ---- State ----
     private static long handle = 0L;        // SDL_Gamepad* or SDL_Joystick*
     private static boolean isGamepad;
@@ -237,6 +258,9 @@ public final class DroneController {
                 return;
             }
             if (captureTarget != null) updateCapture();
+            if (showAxisValues && DroneState.active && ++debugTicks % 4 == 0) {
+                notify(mc, debugText());
+            }
             return;
         }
 
@@ -273,6 +297,7 @@ public final class DroneController {
                 isGamepad = false;
             }
 
+            resetDebugRange();
             name = deviceName(id);
             connectedId = key;
             virtual = VirtualJoystick.isInstance(id);
@@ -293,6 +318,8 @@ public final class DroneController {
         connectedId = "";
         virtual = false;
         roll = pitch = yaw = throttle = 0f;
+        rawRoll = rawPitch = rawYaw = rawThrottle = 0f;
+        resetDebugRange();
         scanCooldown = 20;
     }
 
@@ -313,15 +340,21 @@ public final class DroneController {
         // Gamepad defaults are Mode 2: left = throttle/yaw, right =
         // pitch/roll. Inversion (SDL stick-up is negative) lives in the
         // bindings.
-        roll = shape(read(Axis.ROLL));
-        pitch = shape(read(Axis.PITCH));
-        yaw = shape(read(Axis.YAW));
+        if (showAxisValues) recordDebugValues();
+
+        rawRoll = read(Axis.ROLL);
+        rawPitch = read(Axis.PITCH);
+        rawYaw = read(Axis.YAW);
+        rawThrottle = read(Axis.THROTTLE);
+
+        roll = shape(rawRoll);
+        pitch = shape(rawPitch);
+        yaw = shape(rawYaw);
 
         // Throttle stick maps directly: -1..1 -> 0..1, with no expo, no
         // deadzone and no integration, for gamepads and RC transmitters
         // alike.
-        float t = read(Axis.THROTTLE);
-        throttle = Math.max(0f, Math.min(1f, (t + 1f) * 0.5f));
+        throttle = Math.max(0f, Math.min(1f, (rawThrottle + 1f) * 0.5f));
         return true;
     }
 
@@ -342,6 +375,44 @@ public final class DroneController {
         if (index < 0 || index >= SDLJoystick.SDL_GetNumJoystickAxes(handle)) return 0f;
         float v = norm(SDLJoystick.SDL_GetJoystickAxis(handle, index));
         return invert ? -v : v;
+    }
+
+    /** The axis value exactly as SDL reports it: no inversion, no scaling. */
+    private static short sdlValue(Axis a) {
+        int i = a.ordinal();
+        if (isGamepad) return SDLGamepad.SDL_GetGamepadAxis(handle, gpAxis[i]);
+        int index = rawAxis[i];
+        if (index < 0 || index >= SDLJoystick.SDL_GetNumJoystickAxes(handle)) return 0;
+        return SDLJoystick.SDL_GetJoystickAxis(handle, index);
+    }
+
+    private static void recordDebugValues() {
+        for (Axis a : Axis.values()) {
+            int i = a.ordinal();
+            short v = sdlValue(a);
+            debugRaw[i] = v;
+            if (v < debugMin[i]) debugMin[i] = v;
+            if (v > debugMax[i]) debugMax[i] = v;
+        }
+    }
+
+    private static void resetDebugRange() {
+        java.util.Arrays.fill(debugRaw, (short) 0);
+        java.util.Arrays.fill(debugMin, Short.MAX_VALUE);
+        java.util.Arrays.fill(debugMax, Short.MIN_VALUE);
+    }
+
+    /** One line: for each axis, current raw value and the min..max seen. */
+    private static String debugText() {
+        StringBuilder sb = new StringBuilder();
+        String[] labels = {"R", "P", "Y", "T"};
+        for (Axis a : Axis.values()) {
+            int i = a.ordinal();
+            if (i > 0) sb.append("  ");
+            sb.append(String.format("%s %d [%d..%d]",
+                    labels[i], debugRaw[i], debugMin[i], debugMax[i]));
+        }
+        return sb.toString();
     }
 
     /** SDL axes are signed 16-bit. */
@@ -472,6 +543,19 @@ public final class DroneController {
     // Config
     // ------------------------------------------------------------------
 
+    /** Whether the raw axis readout is shown while flying. */
+    public static boolean isShowAxisValues() {
+        ensureConfig();
+        return showAxisValues;
+    }
+
+    public static void setShowAxisValues(boolean value) {
+        ensureConfig();
+        showAxisValues = value;
+        resetDebugRange(); // start the min..max range fresh
+        saveConfig();
+    }
+
     private static Path configPath() {
         return FMLPaths.CONFIGDIR.get().resolve("fpvdrone-controller.properties");
     }
@@ -496,6 +580,7 @@ public final class DroneController {
         yawRate = getF(p, "yaw_rate_deg_per_sec", yawRate);
 
         selectedId = p.getProperty("selected_controller", "");
+        showAxisValues = getB(p, "show_axis_values", showAxisValues);
 
         for (Axis a : Axis.values()) {
             int i = a.ordinal();
@@ -517,6 +602,7 @@ public final class DroneController {
         p.setProperty("pitch_rate_deg_per_sec", String.valueOf(pitchRate));
         p.setProperty("yaw_rate_deg_per_sec", String.valueOf(yawRate));
         p.setProperty("selected_controller", selectedId);
+        p.setProperty("show_axis_values", String.valueOf(showAxisValues));
 
         for (Axis a : Axis.values()) {
             int i = a.ordinal();

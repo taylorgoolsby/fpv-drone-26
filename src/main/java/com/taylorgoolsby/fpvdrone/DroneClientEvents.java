@@ -156,6 +156,10 @@ public class DroneClientEvents {
         float hudRoll = hudMouseRoll;
         float hudPitch = hudMousePitch;
 
+        // Without a controller the throttle is shown as its actual level
+        // (0..1 -> stick -1..1). With one, it's the raw stick position.
+        float hudThrottle = DroneState.throttle * 2f - 1f;
+
         float pitchDeg = mouseY * PITCH_PER_MOUSE_DEG;
         float rollDeg = mouseX * ROLL_PER_MOUSE_DEG;
         float yawDeg = yawInput * YAW_RATE_DEG_PER_SEC * dt;
@@ -169,9 +173,11 @@ public class DroneClientEvents {
                 hudYaw = 0f;
             }
 
-            hudYaw += DroneController.yaw;
-            hudRoll += DroneController.roll;
-            hudPitch += DroneController.pitch;
+            // The HUD shows the raw sticks, before deadzone, expo and rates.
+            hudYaw += DroneController.rawYaw;
+            hudRoll += DroneController.rawRoll;
+            hudPitch += DroneController.rawPitch;
+            hudThrottle = DroneController.rawThrottle;
 
             pitchDeg += DroneController.pitch * DroneController.pitchRate * dt;
             rollDeg += DroneController.roll * DroneController.rollRate * dt;
@@ -197,12 +203,10 @@ public class DroneClientEvents {
 
         DroneState.position = position;
 
-        // Throttle is shown as its actual level (0..1 -> stick -1..1), which
-        // is what a real throttle stick would be at for every input mode.
         DroneState.hudYaw = clamp1(hudYaw);
         DroneState.hudRoll = clamp1(hudRoll);
         DroneState.hudPitch = clamp1(hudPitch);
-        DroneState.hudThrottle = DroneState.throttle * 2f - 1f;
+        DroneState.hudThrottle = clamp1(hudThrottle);
     }
 
     private static float clamp1(float v) {
