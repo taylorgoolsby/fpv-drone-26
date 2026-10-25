@@ -104,8 +104,8 @@ public final class DroneController {
     public static final float EXPO_MIN = 0f;
     public static final float EXPO_MAX = 1f;
 
-    private static final float DEFAULT_RC_RATE = 1.0f;
-    private static final float DEFAULT_SUPER_RATE = 0.7f;
+    private static final float DEFAULT_RC_RATE = 0.8f;
+    private static final float DEFAULT_SUPER_RATE = 0.2f;
     private static final float DEFAULT_EXPO = 0f;
 
     private static final float[] rcRate = new float[Axis.values().length];
