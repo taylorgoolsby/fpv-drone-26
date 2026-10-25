@@ -18,12 +18,13 @@ public class DroneState {
     private static final float CAMERA_TILT_RAD =
             (float) Math.toRadians(CAMERA_TILT_DEG);
 
-    public static final float GRAVITY = 9.8f;
-    public static final float MAX_THRUST_ACCEL = 24.5f;
+    // Thrust, drag, gravity and motor behaviour come from AdvancedPhysicsCore.
     public static final float HOVER_THROTTLE =
-            GRAVITY / MAX_THRUST_ACCEL;
+            AdvancedPhysicsCore.HOVER_THROTTLE;
     public static final float THROTTLE_RATE = 0.6f;
-    public static final float DRAG = 0.5f;
+
+    private static final AdvancedPhysicsCore physics =
+            new AdvancedPhysicsCore();
 
     public static final Quaternionf orientation = new Quaternionf();
     public static Vec3 position = Vec3.ZERO;
@@ -68,6 +69,7 @@ public class DroneState {
         position = player.position();
         velocity.zero();
         throttle = HOVER_THROTTLE;
+        physics.reset(throttle);
         hudRoll = hudPitch = hudYaw = 0f;
         hudThrottle = HOVER_THROTTLE * 2f - 1f;
 
@@ -120,14 +122,8 @@ public class DroneState {
                 Math.min(1f, throttle + throttleInput * THROTTLE_RATE * dt)
         );
 
-        Vector3f accel = new Vector3f(0f, 1f, 0f)
-                .rotate(orientation)
-                .mul(throttle * MAX_THRUST_ACCEL);
-
-        accel.y -= GRAVITY;
-
-        velocity.fma(dt, accel);
-        velocity.mul((float) Math.exp(-DRAG * dt));
+        // Motors, props, drag and gravity. Updates velocity in place.
+        physics.step(dt, throttle, orientation, velocity);
 
         Vec3 requestedMovement = new Vec3(
                 velocity.x * dt,
