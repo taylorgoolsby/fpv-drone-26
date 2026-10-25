@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class PlayerDimensionsMixin {
 
     private static final EntityDimensions FPV_DIMENSIONS =
-            EntityDimensions.scalable(0.2F, 0.2F).withEyeHeight(0.1F);
+            EntityDimensions.scalable(0.3F, 0.3F).withEyeHeight(0.15F);
 
     @Inject(method = "getDimensions", at = @At("RETURN"), cancellable = true)
     private void fpvdrone$changeDimensions(
