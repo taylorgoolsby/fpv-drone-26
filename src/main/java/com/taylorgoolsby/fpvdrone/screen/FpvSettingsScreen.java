@@ -55,8 +55,14 @@ public class FpvSettingsScreen extends OptionsSubScreen {
                         new BuildSettingsScreen(this, this.options))
         ).build();
 
+        Button physics = Button.builder(
+                Component.translatable("fpvdrone.settings.physics"),
+                b -> this.minecraft.gui.setScreen(
+                        new PhysicsSettingsScreen(this, this.options))
+        ).build();
+
         this.list.addSmall(controller, bindings);
         this.list.addSmall(rates, other);
-        this.list.addSmall(build, null);
+        this.list.addSmall(build, physics);
     }
 }

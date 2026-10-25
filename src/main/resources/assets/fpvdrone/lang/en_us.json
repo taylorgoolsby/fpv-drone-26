@@ -9,6 +9,7 @@
   "fpvdrone.settings.rates": "Rates...",
   "fpvdrone.settings.other": "Other Settings...",
   "fpvdrone.settings.build": "Build...",
+  "fpvdrone.settings.physics": "Physics...",
 
   "fpvdrone.controller.title": "Select Controller",
   "fpvdrone.controller.refresh": "Refresh Device List",
@@ -40,6 +41,17 @@
   "fpvdrone.build.blade_mass": "Blade Mass: %s",
   "fpvdrone.build.motor_mass": "Motor Mass: %s",
   "fpvdrone.build.reset": "Reset to Defaults",
+
+  "fpvdrone.physics.title": "Physics",
+  "fpvdrone.physics.slider": "%s: %s",
+  "fpvdrone.physics.param.air_density": "Air Density",
+  "fpvdrone.physics.param.drone_density": "Drone Density",
+  "fpvdrone.physics.param.drag_coefficient": "Drag Coeff.",
+  "fpvdrone.physics.param.resistance_per_1000_ft": "Wire Res.",
+  "fpvdrone.physics.param.temp_coeff": "Temp Coeff.",
+  "fpvdrone.physics.param.specific_heat": "Specific Heat",
+  "fpvdrone.physics.param.heat_transfer": "Heat Transfer",
+  "fpvdrone.physics.reset": "Reset to Defaults",
 
   "fpvdrone.other.title": "Other Settings",
   "fpvdrone.other.show_axis_values": "Show Raw Axis Values: %s",

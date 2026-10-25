@@ -31,18 +31,16 @@ public class AdvancedPhysicsCore {
 
     public static final float GRAVITY = 9.8f;           // m/s^2
 
-    // Physical constants.
-    private static final float AIR_DENSITY = 1.225f;            // kg/m^3
-    private static final float DRONE_DENSITY = 1500f;           // kg/m^3
-    private static final float DRAG_COEFFICIENT = 1.05f;
-    private static final float VAC = 1.25663706e-6f;            // vacuum permeability
+    // Fixed physical constants. Air density, drone density, drag
+    // coefficient, wire resistance, temperature coefficient, specific heat
+    // and heat transfer come from PhysicsSettings.
     private static final float INCHES_PER_METER = 39.3701f;
-    private static final float RESISTANCE_PER_1000_FT = 25.7f;  // ohm, ~AWG 24 copper
-    private static final float TEMP_COEFF = 0.00393f;           // copper, 1/K
-    private static final float SPECIFIC_HEAT = 400f;            // J/(kg K)
-    private static final float HEAT_TRANSFER = 50f;             // W/(m^2 K)
-
     private static final float REF_TEMP = 293.15f;              // K
+
+    // Vacuum permeability. It is not a setting: the winding turn count is
+    // derived from kv using it twice (once in the flux rate and once in the
+    // magnet's moment), and the two cancel, so changing it changes nothing.
+    private static final float VAC = 1.25663706e-6f;
 
     // Internal simulation settings.
     private static final float MAX_TIME_STEP = 1f / 128f;
@@ -57,7 +55,17 @@ public class AdvancedPhysicsCore {
     // Snapshot of the build, refreshed by applyBuildIfChanged().
     // ---------------------------------------------------------------------
 
-    private int appliedVersion = -1;
+    private int appliedBuildVersion = -1;
+    private int appliedPhysicsVersion = -1;
+
+    // Snapshot of PhysicsSettings.
+    private float airDensity;
+    private float droneDensity;
+    private float airDragCoefficient;
+    private float resistancePer1000Ft;
+    private float tempCoeff;
+    private float specificHeat;
+    private float heatTransfer;
 
     private float droneMass;
     private int batteryCells;
@@ -106,9 +114,22 @@ public class AdvancedPhysicsCore {
      * changed since the last call.
      */
     private void applyBuildIfChanged() {
-        int version = DroneBuild.getVersion();
-        if (version == appliedVersion) return;
-        appliedVersion = version;
+        int buildVersion = DroneBuild.getVersion();
+        int physicsVersion = PhysicsSettings.getVersion();
+        if (buildVersion == appliedBuildVersion
+                && physicsVersion == appliedPhysicsVersion) {
+            return;
+        }
+        appliedBuildVersion = buildVersion;
+        appliedPhysicsVersion = physicsVersion;
+
+        airDensity = PhysicsSettings.get(PhysicsSettings.Param.AIR_DENSITY);
+        droneDensity = PhysicsSettings.get(PhysicsSettings.Param.DRONE_DENSITY);
+        airDragCoefficient = PhysicsSettings.get(PhysicsSettings.Param.DRAG_COEFFICIENT);
+        resistancePer1000Ft = PhysicsSettings.get(PhysicsSettings.Param.RESISTANCE_PER_1000_FT);
+        tempCoeff = PhysicsSettings.get(PhysicsSettings.Param.TEMP_COEFF);
+        specificHeat = PhysicsSettings.get(PhysicsSettings.Param.SPECIFIC_HEAT);
+        heatTransfer = PhysicsSettings.get(PhysicsSettings.Param.HEAT_TRANSFER);
 
         droneMass = DroneBuild.get(DroneBuild.Param.DRONE_MASS);
         batteryCells = Math.round(DroneBuild.get(DroneBuild.Param.BATTERY_CELLS));
@@ -129,7 +150,7 @@ public class AdvancedPhysicsCore {
         float poles = getPoles(motorWidth);
         float slots = getSlots(motorWidth);
 
-        heatCap = SPECIFIC_HEAT * motorMass;
+        heatCap = specificHeat * motorMass;
         motorSurfaceArea = 2f * (float) Math.PI * R * motorHeight
                 + 2f * (float) Math.PI * R * R;
 
@@ -142,12 +163,12 @@ public class AdvancedPhysicsCore {
 
         inertia = computeMotorInertia();
 
-        // The airframe is modelled as a sphere of DRONE_DENSITY for drag.
+        // The airframe is modelled as a sphere of droneDensity for drag.
         float radius = (float) Math.cbrt(
-                3f * droneMass / (DRONE_DENSITY * 4f * (float) Math.PI)
+                3f * droneMass / (droneDensity * 4f * (float) Math.PI)
         );
         float area = (float) Math.PI * radius * radius;
-        dragFactor = AIR_DENSITY * area * DRAG_COEFFICIENT / 2f;
+        dragFactor = airDensity * area * airDragCoefficient / 2f;
 
         // The motor's speed settles with time constant R * kv^2 * J. RK4 is
         // only stable for steps up to a few time constants, so keep the step
@@ -489,7 +510,7 @@ public class AdvancedPhysicsCore {
         return plate + naca + antinaca;
     }
 
-    private static Vector3f getPropDragForce(
+    private Vector3f getPropDragForce(
             Vector3f freeVelRelPropPlanar,
             float dragCoefficient,
             float aoa,
@@ -505,14 +526,14 @@ public class AdvancedPhysicsCore {
                 * (float) Math.sin(aoa))
                 + Math.abs(sectionLength * thickness * (float) Math.cos(aoa));
 
-        float forceMag = dragCoefficient * AIR_DENSITY * flowSpeed * flowSpeed
+        float forceMag = dragCoefficient * airDensity * flowSpeed * flowSpeed
                 * referenceArea / 2f;
 
         // Drag is always along the airflow.
         return normalizedOrZero(freeVelRelPropPlanar).mul(forceMag);
     }
 
-    private static Vector3f getPropLiftForce(
+    private Vector3f getPropLiftForce(
             Vector3f freeVelRelPropPlanar,
             Vector3f motorToProp,
             float liftCoefficient,
@@ -522,7 +543,7 @@ public class AdvancedPhysicsCore {
         float flowSpeed = freeVelRelPropPlanar.length();
         float referenceArea = sectionLength * sectionWidth;
 
-        float forceMag = liftCoefficient * AIR_DENSITY * flowSpeed * flowSpeed
+        float forceMag = liftCoefficient * airDensity * flowSpeed * flowSpeed
                 * referenceArea / 2f;
 
         // Lift is perpendicular to the airflow.
@@ -612,7 +633,7 @@ public class AdvancedPhysicsCore {
     // Motor electrical model
     // ---------------------------------------------------------------------
 
-    private static float dflux_dt(
+    private float dflux_dt(
             float x,
             float slotW,
             float R,
@@ -652,7 +673,7 @@ public class AdvancedPhysicsCore {
         return 2f * (float) Math.PI * R / poles - 0.0005f;
     }
 
-    private static float getPoleMagneticMoment(float R, float h, float poles) {
+    private float getPoleMagneticMoment(float R, float h, float poles) {
         float magW = getMagW(R, poles);
         float magD = 0.001f;
         return 1.48f / VAC * magW * h * magD;
@@ -662,7 +683,7 @@ public class AdvancedPhysicsCore {
      * The number of loops of a single phase. A single phase may span several
      * slots, but that is accounted for by kv.
      */
-    private static float getN(
+    private float getN(
             float R,
             float h,
             float kv,
@@ -685,7 +706,7 @@ public class AdvancedPhysicsCore {
         return Math.round(1f / (d * kv));
     }
 
-    private static float computeRefResistance(
+    private float computeRefResistance(
             float R,
             float h,
             float kv,
@@ -697,7 +718,7 @@ public class AdvancedPhysicsCore {
 
         float loopPeri = 2f * h + 2f * slotW;
         float wireLengthInches = N * loopPeri * INCHES_PER_METER;
-        return wireLengthInches / 12f / 1000f * RESISTANCE_PER_1000_FT;
+        return wireLengthInches / 12f / 1000f * resistancePer1000Ft;
     }
 
     private float computeMotorInertia() {
@@ -710,7 +731,7 @@ public class AdvancedPhysicsCore {
     }
 
     private float getHotResistance(float temp) {
-        return refResistance * (1f + TEMP_COEFF * (temp - REF_TEMP));
+        return refResistance * (1f + tempCoeff * (temp - REF_TEMP));
     }
 
     private float getCurrent(float resistance, float vbat, float rotvel) {
@@ -779,7 +800,7 @@ public class AdvancedPhysicsCore {
     // ---------------------------------------------------------------------
 
     private float getInternalEnergyLost(float temp, float timeStep) {
-        float timeConstant = heatCap / (HEAT_TRANSFER * motorSurfaceArea);
+        float timeConstant = heatCap / (heatTransfer * motorSurfaceArea);
         float cooledTemp = REF_TEMP
                 + (temp - REF_TEMP) * (float) Math.exp(-timeStep / timeConstant);
         return heatCap * (cooledTemp - temp);
