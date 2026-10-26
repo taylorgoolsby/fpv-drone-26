@@ -30,6 +30,7 @@ final class VirtualJoystick {
     // On unless explicitly disabled with -Dfpvdrone.virtual=false.
     static final boolean ENABLED =
             !"false".equalsIgnoreCase(System.getProperty("fpvdrone.virtual"));
+//    static final boolean ENABLED = false;
 
     private static final String NAME = "FPV Virtual Joystick (WASD + Arrows)";
 

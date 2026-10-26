@@ -22,6 +22,11 @@ public final class DroneRegistry {
         }
     }
 
+    /** A copy of the players currently in drone mode. */
+    public static Set<UUID> snapshot() {
+        return Set.copyOf(ACTIVE);
+    }
+
     public static void clear() {
         ACTIVE.clear();
     }

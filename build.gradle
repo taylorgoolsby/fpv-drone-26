@@ -10,7 +10,7 @@ plugins {
 }
 
 base.archivesName = 'fpvdrone'
-version = '1.0.0'
+version = '1.0.17'
 group = 'com.taylorgoolsby.fpvdrone'
 
 // Mojang ships Java 25 to end users in 26.1+, so your mod should target Java 25.
@@ -58,7 +58,7 @@ repositories {
 }
 
 dependencies {
-    implementation minecraft.dependency('net.minecraftforge:forge:26.3-66.0.11')
+    implementation minecraft.dependency('net.minecraftforge:forge:26.3-66.1.0')
     annotationProcessor 'net.minecraftforge:eventbus-validator:7.0.6'
 }
 
@@ -66,4 +66,10 @@ tasks.withType(JavaCompile).configureEach {
     // Use the UTF-8 charset for Java compilation
     // This is done by default in Java 18+, but this ensures it no matter the Java or Gradle version
     options.encoding = 'UTF-8'
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        attributes['MixinConfigs'] = 'fpvdrone.mixins.json'
+    }
 }

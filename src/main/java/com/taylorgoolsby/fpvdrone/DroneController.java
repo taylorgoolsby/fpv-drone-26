@@ -75,6 +75,12 @@ public final class DroneController {
      * Off by default; toggled in FPV Settings > Other Settings.
      */
     private static boolean showAxisValues = false;
+
+    /**
+     * Shows the multiplayer head sync state in the action bar and the log.
+     * Off by default; toggled in FPV Settings > Other Settings.
+     */
+    private static boolean showHeadDebug = false;
     private static final short[] debugRaw = new short[4];
     private static final short[] debugMin = new short[4];
     private static final short[] debugMax = new short[4];
@@ -106,7 +112,7 @@ public final class DroneController {
 
     private static final float DEFAULT_RC_RATE = 0.8f;
     private static final float DEFAULT_SUPER_RATE = 0.2f;
-    private static final float DEFAULT_EXPO = 0.67f;
+    private static final float DEFAULT_EXPO = 0f;
 
     private static final float[] rcRate = new float[Axis.values().length];
     private static final float[] superRate = new float[Axis.values().length];
@@ -268,6 +274,7 @@ public final class DroneController {
      */
     public static void tick(Minecraft mc) {
         ensureConfig();
+        showDebugReadout(mc);
         if (!ensureSdl()) return;
 
         VirtualJoystick.tick(); // no-op unless -Dfpvdrone.virtual=true
@@ -285,9 +292,6 @@ public final class DroneController {
                 return;
             }
             if (captureTarget != null) updateCapture();
-            if (showAxisValues && DroneState.active && ++debugTicks % 4 == 0) {
-                notify(mc, debugText());
-            }
             return;
         }
 
@@ -349,6 +353,25 @@ public final class DroneController {
         rawRoll = rawPitch = rawYaw = rawThrottle = 0f;
         resetDebugRange();
         scanCooldown = 20;
+    }
+
+    /**
+     * The debug readouts share one action-bar line, since a second message
+     * would replace the first: the raw axis values (while flying with a
+     * controller) and the head sync state.
+     */
+    private static void showDebugReadout(Minecraft mc) {
+        boolean axes = showAxisValues && DroneState.active && handle != 0L;
+        if (!axes && !showHeadDebug) return;
+        if (++debugTicks % 4 != 0) return;
+
+        StringBuilder text = new StringBuilder();
+        if (axes) text.append(debugText());
+        if (showHeadDebug) {
+            if (text.length() > 0) text.append("  ||  ");
+            text.append(DroneDebug.screenText());
+        }
+        notify(mc, text.toString());
     }
 
     private static void notify(Minecraft mc, String msg) {
@@ -653,6 +676,19 @@ public final class DroneController {
         saveConfig();
     }
 
+    /** Whether the head sync debug readout is shown. */
+    public static boolean isShowHeadDebug() {
+        ensureConfig();
+        return showHeadDebug;
+    }
+
+    public static void setShowHeadDebug(boolean value) {
+        ensureConfig();
+        showHeadDebug = value;
+        DroneDebug.setEnabled(value);
+        saveConfig();
+    }
+
     private static Path configPath() {
         return FMLPaths.CONFIGDIR.get().resolve("fpvdrone-controller.properties");
     }
@@ -683,6 +719,8 @@ public final class DroneController {
 
         selectedId = p.getProperty("selected_controller", "");
         showAxisValues = getB(p, "show_axis_values", showAxisValues);
+        showHeadDebug = getB(p, "show_head_debug", showHeadDebug);
+        DroneDebug.setEnabled(showHeadDebug);
 
         for (Axis a : Axis.values()) {
             int i = a.ordinal();
@@ -707,6 +745,7 @@ public final class DroneController {
         }
         p.setProperty("selected_controller", selectedId);
         p.setProperty("show_axis_values", String.valueOf(showAxisValues));
+        p.setProperty("show_head_debug", String.valueOf(showHeadDebug));
 
         for (Axis a : Axis.values()) {
             int i = a.ordinal();

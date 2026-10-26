@@ -104,6 +104,7 @@ public class DroneState {
         active = false;
         velocity.zero();
         DroneRegistry.clear();
+        DroneOrientations.clear();
     }
 
     public static void pinPlayerHead(LocalPlayer player) {

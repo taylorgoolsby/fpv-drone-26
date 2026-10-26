@@ -2,6 +2,7 @@ package com.taylorgoolsby.fpvdrone;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -18,6 +19,10 @@ public final class FpvDroneMod {
     public FpvDroneMod(FMLJavaModLoadingContext context) {
         // Runs on both client and dedicated server.
         DroneNetwork.register();
+
+        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(
+                FpvDroneMod::onPlayerLoggedIn
+        );
 
         PlayerEvent.PlayerLoggedOutEvent.BUS.addListener(
                 FpvDroneMod::onPlayerLoggedOut
@@ -40,9 +45,38 @@ public final class FpvDroneMod {
         LOGGER.info("FPV Drone mod loaded");
     }
 
+    /** Height of the drone hitbox. Matches PlayerDimensionsMixin. */
+    private static final float DRONE_BOX_HEIGHT = 0.3F;
+
     private static void onPlayerTick(TickEvent.PlayerTickEvent.Post event) {
-        if (event.player() instanceof ServerPlayer sp) {
+        Player player = event.player();
+
+        if (player instanceof ServerPlayer sp) {
             DroneTogglePacket.maintainFlight(sp);
+        } else if (player.level().isClientSide()) {
+            syncRemoteDimensions(player);
+        }
+    }
+
+    /**
+     * On a client, other players' hitboxes only change when something calls
+     * refreshDimensions(). Their drone flag arrives by packet, so nothing
+     * does; catch up here. (The local player refreshes in DroneState.)
+     */
+    private static void syncRemoteDimensions(Player player) {
+        boolean drone = DroneRegistry.isDrone(player.getUUID());
+        boolean hasDroneBox = Math.abs(player.getBbHeight() - DRONE_BOX_HEIGHT) < 0.001F;
+        if (drone != hasDroneBox) {
+            player.refreshDimensions();
+        }
+    }
+
+    /** Tell a joining player who is already flying. */
+    private static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer joining)) return;
+
+        for (java.util.UUID id : DroneRegistry.snapshot()) {
+            DroneNetwork.sendStateTo(joining, id, true);
         }
     }
 
@@ -50,6 +84,9 @@ public final class FpvDroneMod {
         java.util.UUID id = event.getEntity().getUUID();
         DroneRegistry.set(id, false);
         DroneTogglePacket.forget(id);
+        if (event.getEntity() instanceof ServerPlayer) {
+            DroneNetwork.broadcastState(id, false);
+        }
     }
 
     private static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
@@ -57,5 +94,8 @@ public final class FpvDroneMod {
         DroneRegistry.set(id, false);
         DroneTogglePacket.forget(id);
         event.getEntity().refreshDimensions();
+        if (event.getEntity() instanceof ServerPlayer) {
+            DroneNetwork.broadcastState(id, false);
+        }
     }
 }

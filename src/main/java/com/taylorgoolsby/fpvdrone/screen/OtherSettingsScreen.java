@@ -33,7 +33,24 @@ public class OtherSettingsScreen extends OptionsSubScreen {
                 }
         ).width(FULL_WIDTH).build();
 
+        Button showHeadDebug = Button.builder(
+                showHeadDebugLabel(),
+                b -> {
+                    DroneController.setShowHeadDebug(
+                            !DroneController.isShowHeadDebug());
+                    b.setMessage(showHeadDebugLabel());
+                }
+        ).width(FULL_WIDTH).build();
+
         this.list.addSmall(showAxisValues, null);
+        this.list.addSmall(showHeadDebug, null);
+    }
+
+    private static Component showHeadDebugLabel() {
+        return Component.translatable("fpvdrone.other.show_head_debug",
+                DroneController.isShowHeadDebug()
+                        ? CommonComponents.OPTION_ON
+                        : CommonComponents.OPTION_OFF);
     }
 
     private static Component showAxisValuesLabel() {

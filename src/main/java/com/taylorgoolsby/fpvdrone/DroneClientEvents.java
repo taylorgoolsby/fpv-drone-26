@@ -9,6 +9,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
+import org.joml.Quaternionf;
 
 public class DroneClientEvents {
 
@@ -104,6 +105,13 @@ public class DroneClientEvents {
             }
 
             player.refreshDimensions();
+        }
+
+        // Let other players see where the drone camera points: the server
+        // relays this to whoever is tracking us, to turn our floating head.
+        if (DroneState.active) {
+            Quaternionf camera = DroneState.getCameraOrientation(new Quaternionf());
+            DroneNetwork.sendOrientation(camera.x, camera.y, camera.z, camera.w);
         }
     }
 

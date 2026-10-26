@@ -1,6 +1,7 @@
 package com.taylorgoolsby.fpvdrone.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.taylorgoolsby.fpvdrone.DroneDebug;
 import com.taylorgoolsby.fpvdrone.DroneHeadRender;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
@@ -29,7 +30,10 @@ public abstract class AvatarRendererMixin {
             PoseStack poseStack,
             CallbackInfo ci
     ) {
-        if (DroneHeadRender.isDroneAvatar(state)) {
+        boolean drone = DroneHeadRender.isDroneAvatar(state);
+        DroneDebug.markHook(drone);
+
+        if (drone) {
             DroneHeadRender.positionHead(state, poseStack);
         }
     }

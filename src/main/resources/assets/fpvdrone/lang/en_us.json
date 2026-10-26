@@ -55,6 +55,7 @@
 
   "fpvdrone.other.title": "Other Settings",
   "fpvdrone.other.show_axis_values": "Show Raw Axis Values: %s",
+  "fpvdrone.other.show_head_debug": "Show Head Sync Debug: %s",
 
   "fpvdrone.bindings.title": "Controller Bindings",
   "fpvdrone.bindings.controller": "Controller: %s",

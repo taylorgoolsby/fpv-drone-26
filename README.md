@@ -11,7 +11,7 @@ This is the repo for Minecraft FPV mod ported to MC version 26.3. It is still a 
 - [x] Display controller inputs on HUD
 - [x] Advanced drone physics
 - [x] FPV settings
-- [ ] Drone Model
+- [x] Drone model as floating head
 - [ ] Race gates
 
 ### Running

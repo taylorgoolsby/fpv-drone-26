@@ -36,6 +36,9 @@ public record DroneTogglePacket(boolean active) {
             applyFlightExemption(sender, active);
             sender.refreshDimensions();
 
+            // Everyone else needs to know too, to draw the floating head.
+            DroneNetwork.broadcastState(sender.getUUID(), active);
+
             // DIAGNOSTIC: remove once everything is confirmed working.
             FpvDroneMod.LOGGER.info(
                     "[fpvdrone] toggle from {}: requested={} applied={} serverBoxWidth={} serverBoxHeight={}",
