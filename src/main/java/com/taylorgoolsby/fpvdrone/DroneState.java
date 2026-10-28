@@ -1,5 +1,6 @@
 package com.taylorgoolsby.fpvdrone;
 
+import com.taylorgoolsby.fpvdrone.race.V3;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
@@ -132,23 +133,38 @@ public class DroneState {
                 velocity.y * dt,
                 velocity.z * dt
         );
+        V3 preCollisionVelocity = new V3(velocity.x, velocity.y, velocity.z);
 
         // Let Minecraft resolve collisions using the player's bounding box.
         Vec3 before = player.position();
         player.move(MoverType.SELF, requestedMovement);
-        Vec3 actualMovement = player.position().subtract(before);
+        Vec3 clippedMovement = player.position().subtract(before);
 
-        // Remove velocity along axes blocked by collision.
-        if (Math.abs(actualMovement.x - requestedMovement.x) > 1.0E-5) {
-            velocity.x = 0f;
-        }
+        boolean collided =
+                Math.abs(clippedMovement.x - requestedMovement.x) > 1.0E-5
+                        || Math.abs(clippedMovement.y - requestedMovement.y) > 1.0E-5
+                        || Math.abs(clippedMovement.z - requestedMovement.z) > 1.0E-5;
 
-        if (Math.abs(actualMovement.y - requestedMovement.y) > 1.0E-5) {
-            velocity.y = 0f;
-        }
+        if (collided) {
+            // Bounce instead of stopping: see DroneCollision.
+            DroneCollision.Result bounce = DroneCollision.resolve(
+                    new V3((float) requestedMovement.x, (float) requestedMovement.y, (float) requestedMovement.z),
+                    new V3((float) clippedMovement.x, (float) clippedMovement.y, (float) clippedMovement.z),
+                    preCollisionVelocity
+            );
+            velocity.set(bounce.velocity().x, bounce.velocity().y, bounce.velocity().z);
 
-        if (Math.abs(actualMovement.z - requestedMovement.z) > 1.0E-5) {
-            velocity.z = 0f;
+            // The drone reached the surface; the rest of the tick's movement is
+            // the reflected part. Moving with player.move keeps it from being
+            // pushed into other blocks.
+            Vec3 reflected = new Vec3(
+                    bounce.displacement().x - clippedMovement.x,
+                    bounce.displacement().y - clippedMovement.y,
+                    bounce.displacement().z - clippedMovement.z
+            );
+            if (reflected.lengthSqr() > 1.0E-10) {
+                player.move(MoverType.SELF, reflected);
+            }
         }
 
         position = player.position();

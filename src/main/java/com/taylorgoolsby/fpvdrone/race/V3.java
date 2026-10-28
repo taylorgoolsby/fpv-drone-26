@@ -34,6 +34,13 @@ public final class V3 {
 
     public float length() { return (float) Math.sqrt(lengthSquared()); }
 
+    /** Component of this vector along other (jME3 semantics: NaN if other is a zero vector). */
+    public V3 project(V3 other) {
+        float n = dot(other);
+        float d = other.lengthSquared();
+        return other.mul(n / d);
+    }
+
     /** Zero-safe: a zero vector stays zero (like jME3, unlike JOML). */
     public V3 normalized() {
         float l = lengthSquared();
