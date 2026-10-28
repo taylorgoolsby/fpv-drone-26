@@ -1,6 +1,7 @@
 package com.taylorgoolsby.fpvdrone;
 
 import com.mojang.logging.LogUtils;
+import com.taylorgoolsby.fpvdrone.race.RaceEvents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.TickEvent;
@@ -35,6 +36,10 @@ public final class FpvDroneMod {
         TickEvent.PlayerTickEvent.Post.BUS.addListener(
                 FpvDroneMod::onPlayerTick
         );
+
+        // Racing: track building, racing, lap times. Server side logic; it also
+        // runs on the integrated server in single player.
+        RaceEvents.register();
 
         // Client-only setup, referenced only from ClientInit so the server
         // never loads DroneClientEvents.

@@ -1,5 +1,6 @@
 package com.taylorgoolsby.fpvdrone;
 
+import com.taylorgoolsby.fpvdrone.race.client.RaceClient;
 import com.taylorgoolsby.fpvdrone.screen.FpvSettingsButton;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 
@@ -15,6 +16,7 @@ final class ClientInit {
         DroneClientEvents.register();
         DroneHeadRender.register();
         FpvSettingsButton.register();
+        RaceClient.register();
 
         // Reset drone state when disconnecting from a world or server.
         ClientPlayerNetworkEvent.LoggingOut.BUS.addListener(

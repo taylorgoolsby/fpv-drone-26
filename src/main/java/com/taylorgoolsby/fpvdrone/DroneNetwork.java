@@ -1,5 +1,11 @@
 package com.taylorgoolsby.fpvdrone;
 
+import com.taylorgoolsby.fpvdrone.race.net.BuildGatePacket;
+import com.taylorgoolsby.fpvdrone.race.net.GateIndexPacket;
+import com.taylorgoolsby.fpvdrone.race.net.LapStartPacket;
+import com.taylorgoolsby.fpvdrone.race.net.LeaderboardPacket;
+import com.taylorgoolsby.fpvdrone.race.net.RaceModePacket;
+import com.taylorgoolsby.fpvdrone.race.net.SetBuildModePacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.ChannelBuilder;
@@ -11,7 +17,8 @@ import java.util.UUID;
 public final class DroneNetwork {
 
     // 2: added drone state and orientation sync for other players.
-    private static final int PROTOCOL_VERSION = 2;
+    // 3: added racing (track building, race mode, laps, leaderboard).
+    private static final int PROTOCOL_VERSION = 3;
 
     public static final SimpleChannel CHANNEL = ChannelBuilder
             .named(Identifier.fromNamespaceAndPath(FpvDroneMod.MODID, "main"))
@@ -30,6 +37,12 @@ public final class DroneNetwork {
                 .clientbound(flow -> flow
                         .add(DroneStatePacket.class, DroneStatePacket.CODEC, DroneStatePacket::handle)
                         .add(DroneOrientationBroadcastPacket.class, DroneOrientationBroadcastPacket.CODEC, DroneOrientationBroadcastPacket::handle)
+                        .add(SetBuildModePacket.class, SetBuildModePacket.CODEC, SetBuildModePacket::handle)
+                        .add(BuildGatePacket.class, BuildGatePacket.CODEC, BuildGatePacket::handle)
+                        .add(RaceModePacket.class, RaceModePacket.CODEC, RaceModePacket::handle)
+                        .add(GateIndexPacket.class, GateIndexPacket.CODEC, GateIndexPacket::handle)
+                        .add(LapStartPacket.class, LapStartPacket.CODEC, LapStartPacket::handle)
+                        .add(LeaderboardPacket.class, LeaderboardPacket.CODEC, LeaderboardPacket::handle)
                 );
     }
 
