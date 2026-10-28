@@ -27,7 +27,7 @@ public final class DroneBuild {
      */
     public enum Param {
         DRONE_MASS("drone_mass", 0.65f, 0.10f, 2.00f, 0.005f, 1000f, 0, " g"),
-        BATTERY_CELLS("battery_cells", 4f, 1f, 8f, 1f, 1f, 0, "S"),
+        BATTERY_CELLS("battery_cells", 2f, 1f, 8f, 1f, 1f, 0, "S"),
         MOTOR_KV("motor_kv", 2000f, 500f, 5000f, 50f, 1f, 0, " kV"),
         BLADES("blades", 3f, 2f, 6f, 1f, 1f, 0, ""),
         PROP_RADIUS("prop_radius", 0.0635f, 0.025f, 0.150f, 0.0005f, 1000f, 1, " mm"),
@@ -36,7 +36,7 @@ public final class DroneBuild {
         MOTOR_WIDTH("motor_width", 0.023f, 0.010f, 0.060f, 0.0005f, 1000f, 1, " mm"),
         MOTOR_HEIGHT("motor_height", 0.006f, 0.003f, 0.030f, 0.0005f, 1000f, 1, " mm"),
         /** Degrees the camera is tilted up from the drone's body. Stored in degrees. */
-        CAMERA_ANGLE("camera_angle", 25f, 0f, 70f, 1f, 1f, 0, "\u00b0");
+        CAMERA_ANGLE("camera_angle", 10f, 0f, 70f, 1f, 1f, 0, "\u00b0");
 
         public final String key;
         public final float defaultValue;
