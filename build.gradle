@@ -10,7 +10,7 @@ plugins {
 }
 
 base.archivesName = 'fpvdrone'
-version = '26.3-1.0.17'
+version = '26.3-1.0.18'
 group = 'com.taylorgoolsby.fpvdrone'
 
 // Mojang ships Java 25 to end users in 26.1+, so your mod should target Java 25.

@@ -14,7 +14,7 @@ This is the repo for Minecraft FPV mod ported to MC version 26.3. It is still a 
 - [x] Drone Mode is floating head
 - [ ] Drone Mode is drone model
 - [x] Race gates
-- [ ] Hide vanilla HUD elements in drone mode.
+- [x] Hide vanilla HUD elements in drone mode.
 - [ ] Bounce on collision.
 - [ ] `/tp` command to teleport to a race track.
 

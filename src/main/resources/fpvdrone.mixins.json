@@ -6,7 +6,8 @@
   "mixins": ["PlayerDimensionsMixin"],
   "client": [
     "CameraMixin",
-    "AvatarRendererMixin"
+    "AvatarRendererMixin",
+    "FirstPersonHandsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

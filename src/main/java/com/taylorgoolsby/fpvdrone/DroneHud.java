@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 import net.minecraftforge.client.event.AddGuiOverlayLayersEvent;
+import net.minecraftforge.client.gui.overlay.ForgeLayeredDraw;
 
 /**
  * Client-only. Draws the stick-input overlay: two 2D crosshairs that mimic
@@ -38,6 +39,8 @@ public final class DroneHud {
     }
 
     private static void onAddLayers(AddGuiOverlayLayersEvent event) {
+        hideVanillaLayersWhileFlying(event.getLayeredDraw());
+
         // Added to the end of the root stack, so it draws on top of vanilla's
         // layers. Only shown while flying.
         event.getLayeredDraw().addWithCondition(
@@ -45,6 +48,46 @@ public final class DroneHud {
                 DroneHud::render,
                 () -> DroneState.active
         );
+    }
+
+    /**
+     * Attaches a "not flying" condition to the vanilla HUD layers, so they are
+     * skipped while in drone mode. Layers are matched by Forge's stack and
+     * layer ids. Left visible: camera overlays (vignette, underwater, etc.),
+     * chat, tab list, debug overlay and subtitles.
+     */
+    private static void hideVanillaLayersWhileFlying(ForgeLayeredDraw draw) {
+        // Top level pre-sleep stack.
+        hide(draw, ForgeLayeredDraw.PRE_SLEEP_STACK,
+                ForgeLayeredDraw.CROSSHAIR,
+                ForgeLayeredDraw.POTION_EFFECTS,
+                ForgeLayeredDraw.BOSS_OVERLAY);
+
+        // Hotbar cluster: hotbar (and offhand slot), health, vehicle health,
+        // XP level, XP / locator / jump bars, selected item name.
+        hide(draw, ForgeLayeredDraw.HOTBAR_AND_DECOS,
+                ForgeLayeredDraw.SPECTATOR_HOTBAR,
+                ForgeLayeredDraw.ITEM_HOTBAR,
+                ForgeLayeredDraw.HEALTH_BAR,
+                ForgeLayeredDraw.VEHICLE_HEALTH,
+                ForgeLayeredDraw.BACKGROUND,        // contextual bar background
+                ForgeLayeredDraw.EXPERIENCE_LEVEL,
+                ForgeLayeredDraw.CONTEXTUAL_INFO,   // XP bar / locator bar / jump bar
+                ForgeLayeredDraw.SELECTED_ITEM_NAME,
+                ForgeLayeredDraw.SPECTATOR_ACTION);
+
+        // Post-sleep stack.
+        hide(draw, ForgeLayeredDraw.POST_SLEEP_STACK,
+                ForgeLayeredDraw.DEMO_OVERLAY,
+                ForgeLayeredDraw.SCOREBOARD,
+                ForgeLayeredDraw.HOTBAR_MESSAGE,
+                ForgeLayeredDraw.TITLE_OVERLAY);
+    }
+
+    private static void hide(ForgeLayeredDraw draw, Identifier stack, Identifier... layers) {
+        for (Identifier layer : layers) {
+            draw.addConditionTo(stack, layer, () -> !DroneState.active);
+        }
     }
 
     private static void render(GuiGraphicsExtractor gg, DeltaTracker deltaTracker) {
