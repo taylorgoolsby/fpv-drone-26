@@ -74,6 +74,19 @@ public final class RaceRepository {
         });
     }
 
+    /** Names of all live tracks, alphabetically. */
+    public static CompletableFuture<ArrayList<String>> listTrackNames() {
+        return Database.supply(c -> {
+            ArrayList<String> names = new ArrayList<>();
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT name FROM RaceTrack WHERE deleted = 0 ORDER BY LOWER(name)");
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) names.add(rs.getString("name"));
+            }
+            return names;
+        });
+    }
+
     /** Case-insensitive (SQLite's default comparison is not). */
     public static CompletableFuture<RaceTrack> getTrackByName(String name) {
         return Database.supply(c -> {
@@ -176,36 +189,58 @@ public final class RaceRepository {
     public static CompletableFuture<RaceTrack> softDeleteTrackAt(String dimension, BlockPos pos) {
         return Database.supply(c -> {
             RaceTrack track = selectTrackAt(c, dimension, pos);
-            if (track == null) return null;
-
-            long now = System.currentTimeMillis();
-            boolean previousAutoCommit = c.getAutoCommit();
-            c.setAutoCommit(false);
-            try {
-                try (PreparedStatement ps = c.prepareStatement(
-                        "UPDATE RaceTrack SET deleted = 1, dateUpdated = ? WHERE raceTrackId = ?")) {
-                    ps.setLong(1, now);
-                    ps.setString(2, track.raceTrackId);
-                    ps.executeUpdate();
-                }
-                try (PreparedStatement ps = c.prepareStatement(
-                        "UPDATE RaceGate SET deleted = 1, dateUpdated = ? WHERE raceTrackId = ?")) {
-                    ps.setLong(1, now);
-                    ps.setString(2, track.raceTrackId);
-                    ps.executeUpdate();
-                }
-                c.commit();
-            } catch (Throwable t) {
-                try {
-                    c.rollback();
-                } catch (SQLException ignored) {
-                }
-                throw t;
-            } finally {
-                c.setAutoCommit(previousAutoCommit);
-            }
+            if (track != null) softDelete(c, track);
             return track;
         });
+    }
+
+    /**
+     * Soft deletes the live track with this name (case-insensitive), along with its gates.
+     *
+     * @return the deleted track (before deletion), or null if there was none
+     */
+    public static CompletableFuture<RaceTrack> softDeleteTrackByName(String name) {
+        return Database.supply(c -> {
+            RaceTrack track = null;
+            String sql = "SELECT " + TRACK_COLUMNS + " FROM RaceTrack WHERE LOWER(name) = LOWER(?) AND deleted = 0";
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setString(1, name);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) track = readTrack(rs);
+                }
+            }
+            if (track != null) softDelete(c, track);
+            return track;
+        });
+    }
+
+    private static void softDelete(Connection c, RaceTrack track) throws SQLException {
+        long now = System.currentTimeMillis();
+        boolean previousAutoCommit = c.getAutoCommit();
+        c.setAutoCommit(false);
+        try {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "UPDATE RaceTrack SET deleted = 1, dateUpdated = ? WHERE raceTrackId = ?")) {
+                ps.setLong(1, now);
+                ps.setString(2, track.raceTrackId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = c.prepareStatement(
+                    "UPDATE RaceGate SET deleted = 1, dateUpdated = ? WHERE raceTrackId = ?")) {
+                ps.setLong(1, now);
+                ps.setString(2, track.raceTrackId);
+                ps.executeUpdate();
+            }
+            c.commit();
+        } catch (Throwable t) {
+            try {
+                c.rollback();
+            } catch (SQLException ignored) {
+            }
+            throw t;
+        } finally {
+            c.setAutoCommit(previousAutoCommit);
+        }
     }
 
     // ------------------------------------------------------------------- gates
