@@ -18,6 +18,7 @@ This is the repo for Minecraft FPV mod ported to MC version 26.3. It is still a 
 - [x] Bounce on collision.
 - [x] `/race tp` command to teleport to a track.
 - [x] `/race delete` command to delete a track.
+- [x] `/race spawn` command to teleport to spawn.
 
 ### Running
 

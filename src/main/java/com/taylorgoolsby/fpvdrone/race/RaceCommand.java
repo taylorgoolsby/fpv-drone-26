@@ -22,6 +22,7 @@ import java.util.Set;
  * /race setName <name>   name the track you are building
  * /race list             list the names of all race tracks
  * /race tp <name>       teleport to a track's target block
+ * /race spawn           teleport to the world spawn
  * /race delete <name>   delete a track (operators only)
  */
 public final class RaceCommand {
@@ -46,6 +47,7 @@ public final class RaceCommand {
                 Commands.argument("name", StringArgumentType.string())
                         .suggests(TRACK_NAMES)
                         .executes(RaceCommand::teleport)));
+        race.then(Commands.literal("spawn").executes(RaceCommand::spawn));
         race.then(Commands.literal("delete")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS)) // same level as /gamemode
                 .then(
@@ -61,6 +63,7 @@ public final class RaceCommand {
                         + "/race setName <name> - Give a name to the track you are currently building.\n"
                         + "/race list - List the names of all race tracks.\n"
                         + "/race tp <name> - Teleport to a race track.\n"
+                        + "/race spawn - Teleport to the world spawn.\n"
                         + "/race delete <name> - Delete a race track (operators only)."), false);
         return 1;
     }
@@ -148,17 +151,32 @@ public final class RaceCommand {
                         return;
                     }
 
-                    // Leaving a track by teleporting would otherwise count as flying through gates.
-                    RaceNavigate.exitRacingMode(RaceServer.getId(player.getUUID()), player, null);
-
                     // Stand on top of the target block, in the middle of it.
-                    player.teleportTo(destination,
+                    teleportPlayer(player, destination,
                             track.startPosX + 0.5, track.startPosY + 1.0, track.startPosZ + 0.5,
-                            Set.<Relative>of(), player.getYRot(), player.getXRot(), true);
+                            player.getYRot());
                     RaceServer.success(player, "Teleported to track '" + track.name + "'.");
                 },
                 error -> source.sendFailure(Component.literal("Unable to look up the track. " + error.getMessage())));
         return 1;
+    }
+
+    private static int spawn(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        RaceSpawn.Spawn spawn = RaceSpawn.get(context.getSource().getServer());
+        if (spawn == null) {
+            throw new SimpleCommandExceptionType(Component.literal("The world spawn's dimension is not available.")).create();
+        }
+        teleportPlayer(player, spawn.level(),
+                spawn.pos().getX() + 0.5, spawn.pos().getY(), spawn.pos().getZ() + 0.5, spawn.yaw());
+        RaceServer.success(player, "Teleported to spawn.");
+        return 1;
+    }
+
+    /** Teleports, first leaving racing mode: otherwise the jump would count as flying through gates. */
+    private static void teleportPlayer(ServerPlayer player, ServerLevel level, double x, double y, double z, float yaw) {
+        RaceNavigate.exitRacingMode(RaceServer.getId(player.getUUID()), player, null);
+        player.teleportTo(level, x, y, z, Set.<Relative>of(), yaw, player.getXRot(), true);
     }
 
     private static void requireDatabase() throws CommandSyntaxException {
